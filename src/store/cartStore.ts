@@ -356,6 +356,12 @@ export const useCartStore = create<CartStore>()(
         items: state.items,
         wishlist: state.wishlist,
       }),
+      onRehydrateStorage: () => (state) => {
+        // Recalcule les totaux après l'hydratation
+        setTimeout(() => {
+          state?.calculateTotals && state.calculateTotals();
+        }, 0);
+      },
     }
   )
 );

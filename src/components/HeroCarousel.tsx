@@ -13,7 +13,7 @@ interface CarouselSlide {
 const slides: CarouselSlide[] = [
   {
     id: 1,
-    image: 'https://images.pexels.com/photos/2529148/pexels-photo-2529148.jpeg?auto=compress&cs=tinysrgb&w=1920',
+    image: 'https://cdn.dribbble.com/userupload/13118950/file/original-cfaebacb75910a02e08e618b7ab2a067.jpg?resize=752x&vertical=center',
     title: 'Premium Athletic Wear',
     subtitle: 'Discover our latest collection of high-performance sportswear',
     buttonText: 'Shop Now',
@@ -21,7 +21,7 @@ const slides: CarouselSlide[] = [
   },
   {
     id: 2,
-    image: 'https://images.pexels.com/photos/1598505/pexels-photo-1598505.jpeg?auto=compress&cs=tinysrgb&w=1920',
+    image: 'https://cdna.artstation.com/p/assets/images/images/065/569/746/large/harshraj-chauhan-nike-new-arrival-poster.jpg?1690717266',
     title: 'New Season Collection',
     subtitle: 'Elevate your style with our newest arrivals',
     buttonText: 'Explore',
@@ -29,7 +29,7 @@ const slides: CarouselSlide[] = [
   },
   {
     id: 3,
-    image: 'https://images.pexels.com/photos/1456706/pexels-photo-1456706.jpeg?auto=compress&cs=tinysrgb&w=1920',
+    image: 'https://mostaql.hsoubcdn.com/uploads/thumbnails/1009333/60c770e9a2244/Blender-Project-100415.png',
     title: 'Performance Gear',
     subtitle: 'Professional equipment for serious athletes',
     buttonText: 'View Collection',

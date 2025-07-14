@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Menu, X, ShoppingBag, Filter, ChevronDown, Heart, User, MoreHorizontal } from 'lucide-react';
 import { Category } from '../types';
 import { useCartStore } from '../store/cartStore';
-import { WishlistModal } from './WishlistModal';
+import SideDrawer from './SideDrawer';
 import { useNavigate } from 'react-router-dom';
+import { WishlistModal } from './WishlistModal';
 
 interface HeaderProps {
   categories: Category[];
@@ -16,7 +17,18 @@ interface HeaderProps {
   announcementBarVisible?: boolean;
 }
 
-export const Header: React.FC<HeaderProps> = ({
+// Hook pour détecter si l'écran est large (lg: 1024px+)
+function useIsLargeScreen() {
+  const [isLarge, setIsLarge] = React.useState(() => window.innerWidth >= 1024);
+  useEffect(() => {
+    const handler = () => setIsLarge(window.innerWidth >= 1024);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
+  return isLarge;
+}
+
+export const Header: React.FC<HeaderProps & { products?: any[] }> = ({
   categories,
   selectedCategory,
   onCategoryChange,
@@ -25,13 +37,16 @@ export const Header: React.FC<HeaderProps> = ({
   onProductClick,
   onCartClick,
   announcementBarVisible = true,
+  products = [],
 }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isMoreCategoriesOpen, setIsMoreCategoriesOpen] = useState(false);
   const [isWishlistOpen, setIsWishlistOpen] = useState(false);
+  const [isCartDrawerOpen, setIsCartDrawerOpen] = useState(false);
   const { totalItems, wishlist } = useCartStore();
   const navigate = useNavigate();
+  const isLargeScreen = useIsLargeScreen();
 
   // Main categories that will be visible in the header
   const mainCategories = ['Men', 'Women', 'Kids'];
@@ -58,7 +73,10 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Logo */}
           <button
             className="flex items-center focus:outline-none"
-            onClick={() => navigate('/')}
+            onClick={() => {
+              navigate('/');
+              onCategoryChange('');
+            }}
             aria-label="Go to home page"
           >
             <div className="bg-black p-2 rounded">
@@ -138,8 +156,24 @@ export const Header: React.FC<HeaderProps> = ({
                 placeholder="Search"
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
-                className="pl-10 pr-4 py-2 bg-gray-50 border-0 rounded-full focus:ring-2 focus:ring-black focus:bg-white transition-all w-48 focus:w-64 text-sm"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && searchQuery.trim() !== '') {
+                    navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
+                  }
+                }}
+                className="pl-10 pr-10 py-2 bg-gray-50 border-0 rounded-full focus:ring-2 focus:ring-black focus:bg-white transition-all w-48 focus:w-64 text-sm"
               />
+              {searchQuery && (
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-2 flex items-center text-gray-400 hover:text-black focus:outline-none"
+                  onClick={() => onSearchChange('')}
+                  tabIndex={-1}
+                  aria-label="Clear search"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              )}
             </div>
 
             {/* Mobile Search Toggle */}
@@ -165,7 +199,7 @@ export const Header: React.FC<HeaderProps> = ({
 
             {/* Cart */}
             <button 
-              onClick={onCartClick}
+              onClick={() => setIsCartDrawerOpen(true)}
               className="relative p-2 rounded-full hover:bg-gray-100 transition-colors"
             >
               <ShoppingBag className="h-5 w-5" />
@@ -198,9 +232,26 @@ export const Header: React.FC<HeaderProps> = ({
                 placeholder="Search products..."
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
-                className="pl-10 pr-4 py-3 bg-gray-50 border-0 rounded-full focus:ring-2 focus:ring-black focus:bg-white w-full text-sm"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && searchQuery.trim() !== '') {
+                    navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
+                    setIsSearchOpen(false);
+                  }
+                }}
+                className="pl-10 pr-10 py-3 bg-gray-50 border-0 rounded-full focus:ring-2 focus:ring-black focus:bg-white w-full text-sm"
                 autoFocus
               />
+              {searchQuery && (
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-2 flex items-center text-gray-400 hover:text-black focus:outline-none"
+                  onClick={() => onSearchChange('')}
+                  tabIndex={-1}
+                  aria-label="Clear search"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -264,12 +315,14 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
       
-      {/* Wishlist Modal */}
-      <WishlistModal
-        isOpen={isWishlistOpen}
-        onClose={() => setIsWishlistOpen(false)}
-        onProductClick={onProductClick}
-      />
+      {/* Cart Drawer */}
+      <SideDrawer open={isCartDrawerOpen} onClose={() => setIsCartDrawerOpen(false)} title="Shopping Cart" products={products} />
+      {/* Wishlist: Drawer sur mobile, Modal sur desktop/tablette */}
+      {isLargeScreen ? (
+        <WishlistModal isOpen={isWishlistOpen} onClose={() => setIsWishlistOpen(false)} onProductClick={onProductClick} />
+      ) : (
+        <SideDrawer open={isWishlistOpen} onClose={() => setIsWishlistOpen(false)} title="My Wishlist" products={products} />
+      )}
     </header>
   );
 };

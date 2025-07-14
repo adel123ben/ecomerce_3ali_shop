@@ -29,10 +29,10 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPurchaseForm, setShowPurchaseForm] = useState(false);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
-  const [isLiked, setIsLiked] = useState(false);
+  const { addToCart, getCartItem, updateQuantity, totalItems, addToWishlist, removeFromWishlist, isInWishlist } = useCartStore();
+  const isLiked = product ? isInWishlist(product.id) : false;
   const [isAddedToCart, setIsAddedToCart] = useState(false);
   const [isSliding, setIsSliding] = useState(false);
-  const { addToCart, getCartItem, updateQuantity, totalItems } = useCartStore();
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
 
@@ -50,9 +50,6 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
   useEffect(() => {
     if (product) {
       fetchRelatedProducts();
-      // Check if product is liked (from localStorage for demo)
-      const likedProducts = JSON.parse(localStorage.getItem('likedProducts') || '[]');
-      setIsLiked(likedProducts.includes(product.id));
     }
   }, [product]);
 
@@ -111,20 +108,18 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
 
   const handleLike = () => {
     if (!product) return;
-    
-    const likedProducts = JSON.parse(localStorage.getItem('likedProducts') || '[]');
-    let updatedLikes;
-    
     if (isLiked) {
-      updatedLikes = likedProducts.filter((id: string) => id !== product.id);
-      toast.success('Removed from favorites');
+      removeFromWishlist(product.id);
+      toast.success('Retiré de la wishlist');
     } else {
-      updatedLikes = [...likedProducts, product.id];
-      toast.success('Added to favorites');
+      addToWishlist({
+        id: product.id,
+        name: product.name,
+        price: product.price,
+        image_url: product.image_url,
+      });
+      toast.success('Ajouté à la wishlist');
     }
-    
-    localStorage.setItem('likedProducts', JSON.stringify(updatedLikes));
-    setIsLiked(!isLiked);
   };
 
   const maxQuantity = product?.stock_quantity || 1;
@@ -241,16 +236,6 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
               </button>
               
               <div className="flex items-center space-x-2 sm:space-x-4">
-                <button 
-                  onClick={handleLike}
-                  className={`p-2 transition-all duration-200 rounded-full ${
-                    isLiked 
-                      ? 'text-red-500 bg-red-50 scale-110' 
-                      : 'text-gray-600 hover:text-red-500 hover:bg-red-50'
-                  }`}
-                >
-                  <Heart className={`h-6 w-6 ${isLiked ? 'fill-current' : ''}`} />
-                </button>
                 <div className="relative group">
                   <button className="p-2 text-gray-600 hover:text-blue-500 transition-colors rounded-full hover:bg-blue-50">
                     <Share2 className="h-6 w-6" />
@@ -372,8 +357,22 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
               {/* Basic Info */}
               <div>
                 <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-2 break-words">{product.name}</h1>
-                <div className="flex items-center space-x-4 mb-4">
-                  <div className="flex items-center">
+                <div className="flex items-center space-x-2 mb-4">
+                  <button 
+                    onClick={handleLike}
+                    className={`p-2 sm:p-2.5 transition-all duration-200 rounded-full border flex items-center justify-center group ${
+                      isLiked 
+                        ? 'text-red-500 bg-red-100 border-red-300 scale-110' 
+                        : 'text-gray-600 hover:text-red-500 hover:bg-red-100 border-gray-200'
+                    }`}
+                    aria-label={isLiked ? 'Retirer de la wishlist' : 'Ajouter à la wishlist'}
+                  >
+                    <Heart className={`h-7 w-7 sm:h-6 sm:w-6 ${isLiked ? 'fill-current' : ''}`} />
+                    <span className="ml-2 text-xs font-medium text-gray-700 sm:hidden">
+                      {isLiked ? 'Retirer' : 'Ajouter'}
+                    </span>
+                  </button>
+                  <div className="flex items-center ml-2">
                     {[...Array(5)].map((_, i) => (
                       <Star key={i} className="h-5 w-5 text-yellow-400 fill-current" />
                     ))}

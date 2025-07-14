@@ -13,13 +13,15 @@ import { AdminLogin } from './components/AdminLogin';
 import { AdminDashboard } from './components/AdminDashboard';
 import { Footer } from './components/Footer';
 import { WhatsAppButton } from './components/WhatsAppButton';
-import { CartPage } from './components/CartPage';
 import { useAuth } from './hooks/useAuth';
 import { Product, Category } from './types';
 import { supabase } from './lib/supabase';
 import Typewriter from './components/Typewriter';
 import OrderSuccess from './components/OrderSuccess';
 import { HeroCarousel } from './components/HeroCarousel';
+import SearchResults from './components/SearchResults';
+import SideDrawer from './components/SideDrawer';
+import OrderForm from './components/OrderForm';
 
 // Modern, dismissible announcement bar
 function AnnouncementBar({ visible, onClose }: { visible: boolean; onClose: () => void }) {
@@ -50,7 +52,6 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [showLoader, setShowLoader] = useState(true);
   const [isAdminRoute, setIsAdminRoute] = useState(false);
-  const [isCartOpen, setIsCartOpen] = useState(false);
   
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -231,8 +232,8 @@ function App() {
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         onProductClick={handleProductClick}
-        onCartClick={() => setIsCartOpen(true)}
         announcementBarVisible={barVisible}
+        products={products}
       />
       <Routes>
         <Route
@@ -269,21 +270,18 @@ function App() {
             )
           }
         />
+        <Route path="/search" element={<SearchResults products={products} />} />
         <Route path="/product" element={<Navigate to="/" replace />} />
         <Route
           path="/product/:id"
           element={<ProductDetailRoute products={products} announcementBarVisible={barVisible} />}
         />
         <Route path="/order-success" element={<OrderSuccess />} />
+        <Route path="/order" element={<OrderForm />} />
       </Routes>
-      <CartPage
-        isOpen={isCartOpen}
-        onClose={() => setIsCartOpen(false)}
-        onProductClick={handleProductClick}
-      />
       <Footer />
       <WhatsAppButton />
-      <Toaster position="top-right" />
+      <Toaster position="top-right" containerClassName="!z-[10000]" />
     </div>
   );
 }
