@@ -1,0 +1,624 @@
+import React, { useState, useEffect } from 'react';
+import { X, Heart, Share2, Star, ChevronLeft, ChevronRight, ZoomIn, Minus, Plus, ShoppingCart, Check } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import toast from 'react-hot-toast';
+import { Product, PurchaseFormData } from '../types';
+import { supabase } from '../lib/supabase';
+import { useNavigate } from 'react-router-dom';
+import { useCartStore } from '../store/cartStore';
+import { CartPage } from './CartPage';
+import ReactDOM from 'react-dom';
+
+const purchaseSchema = z.object({
+  customer_name: z.string().min(2, 'Name must be at least 2 characters'),
+  phone: z.string().regex(/^\+?[1-9]\d{1,14}$/, 'Please enter a valid phone number'),
+});
+
+interface ProductDetailPageProps {
+  product: Product | null;
+  onClose?: () => void;
+  announcementBarVisible?: boolean;
+}
+
+export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, onClose, announcementBarVisible }) => {
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [quantity, setQuantity] = useState(1);
+  const [isZoomed, setIsZoomed] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPurchaseForm, setShowPurchaseForm] = useState(false);
+  const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
+  const [isLiked, setIsLiked] = useState(false);
+  const [isAddedToCart, setIsAddedToCart] = useState(false);
+  const [isSliding, setIsSliding] = useState(false);
+  const { addToCart, getCartItem, updateQuantity, totalItems } = useCartStore();
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    reset,
+  } = useForm<PurchaseFormData>({
+    resolver: zodResolver(purchaseSchema),
+  });
+
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (product) {
+      fetchRelatedProducts();
+      // Check if product is liked (from localStorage for demo)
+      const likedProducts = JSON.parse(localStorage.getItem('likedProducts') || '[]');
+      setIsLiked(likedProducts.includes(product.id));
+    }
+  }, [product]);
+
+  // Fetch all products for recommendations
+  useEffect(() => {
+    const fetchAllProducts = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('products')
+          .select('*')
+          .neq('id', product?.id)
+          .order('created_at', { ascending: false });
+        if (!error && data) setAllProducts(data);
+      } catch (e) { /* ignore */ }
+    };
+    if (product) fetchAllProducts();
+  }, [product]);
+
+  const fetchRelatedProducts = async () => {
+    if (!product) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .neq('id', product.id)
+        .eq('category_id', product.category_id)
+        .limit(4);
+
+      if (error) throw error;
+      setRelatedProducts(data || []);
+    } catch (error) {
+      console.error('Error fetching related products:', error);
+    }
+  };
+
+  const handleImageNavigation = (direction: 'prev' | 'next') => {
+    if (!product?.image_url) return;
+    
+    setIsSliding(true);
+    
+    // Create array of images (product images)
+    const images = product.images && product.images.length > 0 
+      ? product.images 
+      : (product.image_url ? [product.image_url] : []);
+    
+    setTimeout(() => {
+      if (direction === 'prev') {
+        setCurrentImageIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
+      } else {
+        setCurrentImageIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
+      }
+      setIsSliding(false);
+    }, 150);
+  };
+
+  const handleLike = () => {
+    if (!product) return;
+    
+    const likedProducts = JSON.parse(localStorage.getItem('likedProducts') || '[]');
+    let updatedLikes;
+    
+    if (isLiked) {
+      updatedLikes = likedProducts.filter((id: string) => id !== product.id);
+      toast.success('Removed from favorites');
+    } else {
+      updatedLikes = [...likedProducts, product.id];
+      toast.success('Added to favorites');
+    }
+    
+    localStorage.setItem('likedProducts', JSON.stringify(updatedLikes));
+    setIsLiked(!isLiked);
+  };
+
+  const maxQuantity = product?.stock_quantity || 1;
+
+  const handleAddToCart = () => {
+    if (!product) return;
+    const cartItem = getCartItem(product.id);
+    const newQuantity = (cartItem?.quantity || 0) + quantity;
+    if (newQuantity > maxQuantity) {
+      toast.error(`Only ${maxQuantity} in stock!`);
+      return;
+    }
+    if (cartItem) {
+      updateQuantity(product.id, newQuantity);
+    } else {
+      addToCart({
+        id: product.id,
+        name: product.name,
+        price: product.price,
+        image_url: product.image_url,
+        stock_quantity: maxQuantity,
+      });
+      if (quantity > 1) {
+        updateQuantity(product.id, quantity);
+      }
+    }
+    setIsAddedToCart(true);
+    toast.success(`Added ${quantity} item(s) to cart`);
+    setTimeout(() => setIsAddedToCart(false), 2000);
+  };
+
+  const handleShare = async (platform: string) => {
+    if (!product) return;
+    
+    const url = window.location.href;
+    const text = `Check out this amazing product: ${product.name} - ${product.price.toFixed(2)} DA`;
+    
+    switch (platform) {
+      case 'facebook':
+        window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank');
+        break;
+      case 'twitter':
+        window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, '_blank');
+        break;
+      case 'whatsapp':
+        window.open(`https://wa.me/?text=${encodeURIComponent(text + ' ' + url)}`, '_blank');
+        break;
+      case 'copy':
+        await navigator.clipboard.writeText(url);
+        toast.success('Link copied to clipboard');
+        break;
+    }
+  };
+
+  const onSubmit = async (data: PurchaseFormData) => {
+    if (!product) return;
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase
+        .from('inquiries')
+        .insert([
+          {
+            product_id: product.id,
+            customer_name: data.customer_name,
+            phone: data.phone,
+          },
+        ]);
+      if (error) throw error;
+      const whatsappMessage = `Hi! I'm interested in purchasing ${product.name}
+\nProduct Details:\n- Name: ${product.name}\n- Price: ${product.price.toFixed(2)} DA\n- Quantity: ${quantity}\n\nCustomer Information:\n- Name: ${data.customer_name}\n- Phone: ${data.phone}\n\nPlease let me know about availability and next steps. Thank you!`;
+      const whatsappNumber = '+1234567890';
+      const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(whatsappMessage)}`;
+      window.open(whatsappUrl, '_blank');
+      toast.success('Inquiry submitted successfully!');
+      reset();
+      setShowPurchaseForm(false);
+      navigate('/order-success');
+    } catch (error) {
+      console.error('Error submitting inquiry:', error);
+      toast.error('Failed to submit inquiry. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (!product) return null;
+
+  // Create array of images for the gallery
+  const images = product.images && product.images.length > 0 
+    ? product.images 
+    : (product.image_url ? [product.image_url] : []);
+
+  const currentImage = images[currentImageIndex];
+
+  return (
+    <div className="fixed inset-0 bg-white z-50 overflow-y-auto">
+      <div className="min-h-screen">
+        {/* Header */}
+        <div className="sticky top-0 bg-white border-b border-gray-200 z-10">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between h-16">
+              <button
+                onClick={() => {
+                  if (onClose) {
+                    onClose();
+                  } else {
+                    navigate(-1);
+                  }
+                }}
+                className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                <X className="h-6 w-6" />
+                <span>Close</span>
+              </button>
+              
+              <div className="flex items-center space-x-2 sm:space-x-4">
+                <button 
+                  onClick={handleLike}
+                  className={`p-2 transition-all duration-200 rounded-full ${
+                    isLiked 
+                      ? 'text-red-500 bg-red-50 scale-110' 
+                      : 'text-gray-600 hover:text-red-500 hover:bg-red-50'
+                  }`}
+                >
+                  <Heart className={`h-6 w-6 ${isLiked ? 'fill-current' : ''}`} />
+                </button>
+                <div className="relative group">
+                  <button className="p-2 text-gray-600 hover:text-blue-500 transition-colors rounded-full hover:bg-blue-50">
+                    <Share2 className="h-6 w-6" />
+                  </button>
+                  {/* Share dropdown */}
+                  <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-lg border opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+                    <div className="p-2">
+                      <button
+                        onClick={() => handleShare('facebook')}
+                        className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded"
+                      >
+                        Share on Facebook
+                      </button>
+                      <button
+                        onClick={() => handleShare('twitter')}
+                        className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded"
+                      >
+                        Share on Twitter
+                      </button>
+                      <button
+                        onClick={() => handleShare('whatsapp')}
+                        className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded"
+                      >
+                        Share on WhatsApp
+                      </button>
+                      <button
+                        onClick={() => handleShare('copy')}
+                        className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded"
+                      >
+                        Copy Link
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                {/* Cart Button */}
+                <button
+                  onClick={() => setIsCartOpen(true)}
+                  className="relative p-2 text-gray-600 hover:text-green-600 transition-colors rounded-full hover:bg-green-50"
+                  aria-label="View Cart"
+                >
+                  <ShoppingCart className="h-6 w-6" />
+                  {totalItems > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-green-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                      {totalItems}
+                    </span>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 ${typeof announcementBarVisible !== 'undefined' ? (announcementBarVisible ? 'mt-20 sm:mt-24' : 'mt-8 sm:mt-12') : 'mt-20 sm:mt-24'}`}>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
+            {/* Image Gallery */}
+            <div className="space-y-4">
+              {/* Main Image */}
+              <div className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden group">
+                <div className={`w-full h-full transition-all duration-300 ${isSliding ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}>
+                  <img
+                    src={currentImage}
+                    alt={product.name}
+                    className="w-full h-full object-cover transition-transform duration-300 cursor-zoom-in"
+                    style={{ maxWidth: '100%', maxHeight: '100%' }}
+                    onClick={() => setIsZoomed(true)}
+                  />
+                </div>
+                {/* Navigation Arrows */}
+                {images.length > 1 && (
+                  <>
+                    <button
+                      onClick={() => handleImageNavigation('prev')}
+                      className="absolute left-2 sm:left-4 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-90 hover:bg-opacity-100 rounded-full p-2 sm:p-3 transition-all opacity-0 group-hover:opacity-100 shadow-lg"
+                    >
+                      <ChevronLeft className="h-6 w-6" />
+                    </button>
+                    <button
+                      onClick={() => handleImageNavigation('next')}
+                      className="absolute right-2 sm:right-4 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-90 hover:bg-opacity-100 rounded-full p-2 sm:p-3 transition-all opacity-0 group-hover:opacity-100 shadow-lg"
+                    >
+                      <ChevronRight className="h-6 w-6" />
+                    </button>
+                  </>
+                )}
+                {/* Image Counter */}
+                {images.length > 1 && (
+                  <div className="absolute bottom-2 sm:bottom-4 left-2 sm:left-4 bg-black bg-opacity-60 text-white px-3 py-1 rounded-full text-xs sm:text-sm">
+                    {currentImageIndex + 1} / {images.length}
+                  </div>
+                )}
+              </div>
+
+              {/* Thumbnail Gallery */}
+              {images.length > 1 && (
+                <div className="grid grid-cols-3 gap-2 sm:gap-4 overflow-x-auto">
+                  {images.map((image, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setCurrentImageIndex(index)}
+                      className={`aspect-square bg-gray-100 rounded-lg overflow-hidden border-2 transition-all ${
+                        currentImageIndex === index
+                          ? 'border-blue-500 ring-2 ring-blue-200'
+                          : 'border-transparent hover:border-gray-300'
+                      }`}
+                    >
+                      <img
+                        src={image}
+                        alt={`${product.name} view ${index + 1}`}
+                        className="w-full h-full object-cover"
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Product Information */}
+            <div className="space-y-6 sm:space-y-8">
+              {/* Basic Info */}
+              <div>
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-2 break-words">{product.name}</h1>
+                <div className="flex items-center space-x-4 mb-4">
+                  <div className="flex items-center">
+                    {[...Array(5)].map((_, i) => (
+                      <Star key={i} className="h-5 w-5 text-yellow-400 fill-current" />
+                    ))}
+                    <span className="ml-2 text-sm text-gray-600">(4.8) 124 reviews</span>
+                  </div>
+                </div>
+                <p className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900">{product.price.toFixed(2)} DA</p>
+                <p className="text-green-600 font-medium mt-2">In Stock</p>
+              </div>
+
+              {/* Quantity */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Quantity</h3>
+                <div className="flex flex-nowrap items-center border border-gray-300 rounded-lg w-full max-w-[120px] overflow-hidden">
+                  <button
+                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                    className="p-3 hover:bg-gray-100 transition-colors flex-shrink-0"
+                  >
+                    <Minus className="h-4 w-4" />
+                  </button>
+                  <span className="px-2 py-3 font-medium text-lg w-10 min-w-[2.5rem] text-center select-none overflow-hidden">{quantity}</span>
+                  <button
+                    onClick={() => setQuantity(Math.min(maxQuantity, quantity + 1))}
+                    className="p-3 hover:bg-gray-100 transition-colors flex-shrink-0"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="space-y-3 sm:space-y-4">
+                <button
+                  onClick={handleAddToCart}
+                  disabled={isAddedToCart}
+                  className={`w-full py-3 sm:py-4 px-4 sm:px-6 rounded-lg font-semibold text-base sm:text-lg transition-all duration-200 flex items-center justify-center space-x-2 ${
+                    isAddedToCart
+                      ? 'bg-green-600 text-white'
+                      : 'bg-gray-900 text-white hover:bg-gray-800'
+                  }`}
+                >
+                  {isAddedToCart ? (
+                    <>
+                      <Check className="h-5 w-5" />
+                      <span>Added to Cart</span>
+                    </>
+                  ) : (
+                    <>
+                      <ShoppingCart className="h-5 w-5" />
+                      <span>Add to Cart</span>
+                    </>
+                  )}
+                </button>
+                
+                <button
+                  onClick={() => setShowPurchaseForm(true)}
+                  className="w-full bg-blue-600 text-white py-3 sm:py-4 px-4 sm:px-6 rounded-lg hover:bg-blue-700 transition-colors font-semibold text-base sm:text-lg"
+                >
+                  Buy Now
+                </button>
+              </div>
+
+              {/* Product Description */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Description</h3>
+                <p className="text-gray-700 font-sans text-base sm:text-lg leading-relaxed mb-2" style={{ fontFamily: 'Inter, sans-serif' }}>
+                  {product.description}
+                </p>
+              </div>
+
+              {/* Specifications */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Specifications</h3>
+                <div className="space-y-2">
+                  <div className="flex flex-col sm:flex-row sm:justify-between py-2 border-b border-gray-200 gap-1 sm:gap-0">
+                    <span className="text-gray-600">Matériau</span>
+                    <span className="font-medium">{product.material || '100% vrai'}</span>
+                  </div>
+                  <div className="flex flex-col sm:flex-row sm:justify-between py-2 border-b border-gray-200 gap-1 sm:gap-0">
+                    <span className="text-gray-600">Genre</span>
+                    <span className="font-medium">{product.category?.name || 'N/A'}</span>
+                  </div>
+                  <div className="flex flex-col sm:flex-row sm:justify-between py-2 border-b border-gray-200 gap-1 sm:gap-0">
+                    <span className="text-gray-600">Origin</span>
+                    <span className="font-medium">Made in USA</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Related Products */}
+          {allProducts.length > 0 && (
+            <div className="mt-16">
+              <h2 className="text-2xl font-bold text-gray-900 mb-8">You might also like</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {allProducts.slice(0, 5).map((relatedProduct) => (
+                  <button
+                    key={relatedProduct.id}
+                    className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow text-left focus:outline-none focus:ring-2 focus:ring-black"
+                    onClick={() => {
+                      window.location.href = `/product/${relatedProduct.id}`;
+                    }}
+                    tabIndex={0}
+                    aria-label={`View details for ${relatedProduct.name}`}
+                  >
+                    <div className="aspect-square bg-gray-100">
+                      <img
+                        src={relatedProduct.image_url || '/placeholder-product.jpg'}
+                        alt={relatedProduct.name}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="p-4">
+                      <h3 className="font-semibold text-gray-900 mb-2">{relatedProduct.name}</h3>
+                      <p className="text-xl font-bold text-blue-600">{relatedProduct.price.toLocaleString('en-US', { maximumFractionDigits: 0 })} DA</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+              <div className="flex justify-center mt-8">
+                <button
+                  onClick={() => navigate('/')}
+                  className="px-6 py-2 rounded-full bg-black text-white font-semibold text-base hover:bg-gray-800 transition-all shadow-lg"
+                >
+                  More
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Purchase Form Modal */}
+      {showPurchaseForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold">Complete Your Purchase</h3>
+              <button
+                onClick={() => setShowPurchaseForm(false)}
+                className="p-2 hover:bg-gray-100 rounded-full"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Full Name *
+                </label>
+                <input
+                  {...register('customer_name')}
+                  type="text"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Enter your full name"
+                />
+                {errors.customer_name && (
+                  <p className="text-red-500 text-sm mt-1">{errors.customer_name.message}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Phone Number *
+                </label>
+                <input
+                  {...register('phone')}
+                  type="tel"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="+1234567890"
+                />
+                {errors.phone && (
+                  <p className="text-red-500 text-sm mt-1">{errors.phone.message}</p>
+                )}
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50"
+              >
+                {isSubmitting ? 'Submitting...' : 'Contact via WhatsApp'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Cart Modal */}
+      {isCartOpen && (
+        <CartPage
+          isOpen={isCartOpen}
+          onClose={() => setIsCartOpen(false)}
+          onProductClick={(product) => {
+            setIsCartOpen(false);
+            if (product && product.id) {
+              navigate(`/product/${product.id}`);
+            }
+          }}
+        />
+      )}
+
+      {/* Zoom overlay rendered in portal */}
+      {isZoomed ? ReactDOM.createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-90" onClick={() => setIsZoomed(false)}>
+          <img
+            src={currentImage}
+            alt={product.name}
+            className="max-w-full max-h-full object-contain cursor-zoom-out"
+          />
+          {/* Navigation arrows in zoom mode */}
+          {images.length > 1 && (
+            <>
+              <button
+                onClick={(e) => { e.stopPropagation(); handleImageNavigation('prev'); }}
+                className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full p-3 transition-all"
+              >
+                <ChevronLeft className="h-8 w-8 text-gray-800" />
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); handleImageNavigation('next'); }}
+                className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full p-3 transition-all"
+              >
+                <ChevronRight className="h-8 w-8 text-gray-800" />
+              </button>
+            </>
+          )}
+          {/* Image counter in zoom mode */}
+          {images.length > 1 && (
+            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-60 text-white px-4 py-2 rounded-full text-sm">
+              {currentImageIndex + 1} / {images.length}
+            </div>
+          )}
+          <button
+            className="absolute top-4 right-4 bg-white bg-opacity-80 rounded-full p-2 hover:bg-gray-200"
+            onClick={e => { e.stopPropagation(); setIsZoomed(false); }}
+            aria-label="Close zoom"
+          >
+            <X className="h-6 w-6 text-gray-800" />
+          </button>
+        </div>,
+        document.body
+      ) : null}
+    </div>
+  );
+};
