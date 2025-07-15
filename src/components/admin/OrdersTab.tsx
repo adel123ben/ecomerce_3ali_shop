@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, Package, Truck, CheckCircle, XCircle, Clock, User, Phone, Mail, MapPin } from 'lucide-react';
+import { Eye, Package, Truck, CheckCircle, XCircle, Clock, User, Phone, Mail, MapPin, Download, Filter, Search } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
 
@@ -19,7 +19,10 @@ interface Order {
   customer_phone: string;
   customer_email?: string;
   customer_address?: string;
-  notes?: string;
+  payment_method?: string;
+  special_instructions?: string;
+  subtotal?: number;
+  shipping_cost?: number;
   total_amount: number;
   status: 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled';
   created_at: string;
@@ -35,15 +38,30 @@ const statusConfig = {
   cancelled: { label: 'Cancelled', color: 'bg-red-100 text-red-800', icon: XCircle },
 };
 
+const paymentMethodLabels = {
+  cash_on_delivery: 'Cash on Delivery',
+  bank_transfer: 'Bank Transfer',
+  credit_card: 'Credit Card',
+};
+
 export const OrdersTab: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
+  const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<'date' | 'status' | 'customer' | 'total'>('date');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   useEffect(() => {
     fetchOrders();
   }, []);
+
+  useEffect(() => {
+    filterAndSortOrders();
+  }, [orders, statusFilter, searchQuery, sortBy, sortOrder]);
 
   const fetchOrders = async () => {
     try {
@@ -80,6 +98,61 @@ export const OrdersTab: React.FC = () => {
     }
   };
 
+  const filterAndSortOrders = () => {
+    let filtered = [...orders];
+
+    // Apply status filter
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(order => order.status === statusFilter);
+    }
+
+    // Apply search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(order =>
+        order.customer_name.toLowerCase().includes(query) ||
+        order.customer_email?.toLowerCase().includes(query) ||
+        order.customer_phone.includes(query) ||
+        order.id.toLowerCase().includes(query)
+      );
+    }
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      let aValue: any, bValue: any;
+
+      switch (sortBy) {
+        case 'date':
+          aValue = new Date(a.created_at);
+          bValue = new Date(b.created_at);
+          break;
+        case 'status':
+          aValue = a.status;
+          bValue = b.status;
+          break;
+        case 'customer':
+          aValue = a.customer_name.toLowerCase();
+          bValue = b.customer_name.toLowerCase();
+          break;
+        case 'total':
+          aValue = a.total_amount;
+          bValue = b.total_amount;
+          break;
+        default:
+          aValue = a.created_at;
+          bValue = b.created_at;
+      }
+
+      if (sortOrder === 'asc') {
+        return aValue > bValue ? 1 : -1;
+      } else {
+        return aValue < bValue ? 1 : -1;
+      }
+    });
+
+    setFilteredOrders(filtered);
+  };
+
   const updateOrderStatus = async (orderId: string, newStatus: Order['status']) => {
     try {
       const { error } = await supabase
@@ -110,6 +183,30 @@ export const OrdersTab: React.FC = () => {
     setShowOrderDetails(true);
   };
 
+  const exportOrders = () => {
+    const csvContent = [
+      ['Order ID', 'Date', 'Customer', 'Email', 'Phone', 'Status', 'Total', 'Payment Method'].join(','),
+      ...filteredOrders.map(order => [
+        order.id.slice(0, 8),
+        new Date(order.created_at).toLocaleDateString(),
+        order.customer_name,
+        order.customer_email || '',
+        order.customer_phone,
+        order.status,
+        order.total_amount.toFixed(2),
+        paymentMethodLabels[order.payment_method as keyof typeof paymentMethodLabels] || order.payment_method || ''
+      ].join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `orders-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -126,13 +223,80 @@ export const OrdersTab: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-900">Orders</h1>
-        <div className="text-sm text-gray-500">
-          {orders.length} {orders.length === 1 ? 'order' : 'orders'}
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Orders Management</h1>
+          <p className="text-gray-600">
+            {filteredOrders.length} of {orders.length} orders
+          </p>
+        </div>
+        <button
+          onClick={exportOrders}
+          className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+        >
+          <Download className="h-4 w-4" />
+          <span>Export CSV</span>
+        </button>
+      </div>
+
+      {/* Filters and Search */}
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search orders..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+
+          {/* Status Filter */}
+          <div className="relative">
+            <Filter className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none"
+            >
+              <option value="all">All Status</option>
+              <option value="pending">Pending</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="shipped">Shipped</option>
+              <option value="delivered">Delivered</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+
+          {/* Sort By */}
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as any)}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="date">Sort by Date</option>
+            <option value="status">Sort by Status</option>
+            <option value="customer">Sort by Customer</option>
+            <option value="total">Sort by Total</option>
+          </select>
+
+          {/* Sort Order */}
+          <select
+            value={sortOrder}
+            onChange={(e) => setSortOrder(e.target.value as any)}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="desc">Descending</option>
+            <option value="asc">Ascending</option>
+          </select>
         </div>
       </div>
 
+      {/* Orders Table */}
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
@@ -162,13 +326,16 @@ export const OrdersTab: React.FC = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {orders.map((order) => {
+              {filteredOrders.map((order) => {
                 const StatusIcon = statusConfig[order.status].icon;
                 return (
                   <tr key={order.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">
-                        #{order.id.slice(0, 8)}
+                        #{order.id.slice(0, 8).toUpperCase()}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {paymentMethodLabels[order.payment_method as keyof typeof paymentMethodLabels] || order.payment_method || 'N/A'}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -179,6 +346,11 @@ export const OrdersTab: React.FC = () => {
                         <div className="text-sm text-gray-500">
                           {order.customer_phone}
                         </div>
+                        {order.customer_email && (
+                          <div className="text-sm text-gray-500">
+                            {order.customer_email}
+                          </div>
+                        )}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -190,6 +362,11 @@ export const OrdersTab: React.FC = () => {
                       <div className="text-sm font-medium text-gray-900">
                         {order.total_amount.toFixed(2)} DA
                       </div>
+                      {order.subtotal && order.shipping_cost !== undefined && (
+                        <div className="text-xs text-gray-500">
+                          {order.subtotal.toFixed(2)} + {order.shipping_cost.toFixed(2)} shipping
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusConfig[order.status].color}`}>
@@ -205,6 +382,7 @@ export const OrdersTab: React.FC = () => {
                         <button
                           onClick={() => handleViewOrder(order)}
                           className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50"
+                          title="View Details"
                         >
                           <Eye className="h-4 w-4" />
                         </button>
@@ -227,6 +405,13 @@ export const OrdersTab: React.FC = () => {
             </tbody>
           </table>
         </div>
+
+        {filteredOrders.length === 0 && (
+          <div className="text-center py-12">
+            <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-500">No orders found</p>
+          </div>
+        )}
       </div>
 
       {/* Order Details Modal */}
@@ -237,7 +422,7 @@ export const OrdersTab: React.FC = () => {
             <div className="flex items-center justify-between p-6 border-b border-gray-100">
               <div>
                 <h2 className="text-xl font-bold text-gray-900">
-                  Order #{selectedOrder.id.slice(0, 8)}
+                  Order #{selectedOrder.id.slice(0, 8).toUpperCase()}
                 </h2>
                 <p className="text-sm text-gray-500">
                   {formatDate(selectedOrder.created_at)}
@@ -273,19 +458,27 @@ export const OrdersTab: React.FC = () => {
                       </div>
                     )}
                     {selectedOrder.customer_address && (
-                      <div className="flex items-center space-x-3">
-                        <MapPin className="h-4 w-4 text-gray-400" />
+                      <div className="flex items-start space-x-3">
+                        <MapPin className="h-4 w-4 text-gray-400 mt-0.5" />
                         <span className="text-sm text-gray-600">{selectedOrder.customer_address}</span>
                       </div>
                     )}
-                    {selectedOrder.notes && (
-                      <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                        <p className="text-sm text-gray-600">
-                          <strong>Notes:</strong> {selectedOrder.notes}
-                        </p>
-                      </div>
-                    )}
                   </div>
+
+                  {/* Payment & Special Instructions */}
+                  <div className="mt-6">
+                    <h4 className="font-medium text-gray-900 mb-2">Payment Method</h4>
+                    <p className="text-sm text-gray-600">
+                      {paymentMethodLabels[selectedOrder.payment_method as keyof typeof paymentMethodLabels] || selectedOrder.payment_method || 'Not specified'}
+                    </p>
+                  </div>
+
+                  {selectedOrder.special_instructions && (
+                    <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                      <h4 className="font-medium text-gray-900 mb-2">Special Instructions</h4>
+                      <p className="text-sm text-gray-600">{selectedOrder.special_instructions}</p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Order Items */}
@@ -312,10 +505,26 @@ export const OrdersTab: React.FC = () => {
                         </div>
                       </div>
                     ))}
-                    <div className="border-t pt-3">
-                      <div className="flex justify-between font-semibold">
+                    
+                    {/* Order Totals */}
+                    <div className="border-t pt-3 space-y-2">
+                      {selectedOrder.subtotal && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">Subtotal</span>
+                          <span className="text-gray-900">{selectedOrder.subtotal.toFixed(2)} DA</span>
+                        </div>
+                      )}
+                      {selectedOrder.shipping_cost !== undefined && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">Shipping</span>
+                          <span className="text-gray-900">
+                            {selectedOrder.shipping_cost === 0 ? 'Free' : `${selectedOrder.shipping_cost.toFixed(2)} DA`}
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex justify-between font-semibold pt-2 border-t">
                         <span>Total</span>
-                        <span>{order.total_amount.toFixed(2)} DA</span>
+                        <span>{selectedOrder.total_amount.toFixed(2)} DA</span>
                       </div>
                     </div>
                   </div>
@@ -327,4 +536,4 @@ export const OrdersTab: React.FC = () => {
       )}
     </div>
   );
-}; 
+};

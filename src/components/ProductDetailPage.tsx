@@ -151,6 +151,22 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
     setTimeout(() => setIsAddedToCart(false), 2000);
   };
 
+  const handleBuyNow = () => {
+    if (!product) return;
+    
+    // Navigate to order form with single product data
+    navigate('/order', {
+      state: {
+        singleProduct: {
+          id: product.id,
+          name: product.name,
+          price: product.price,
+          image_url: product.image_url,
+          quantity: quantity,
+        }
+      }
+    });
+  };
   const handleShare = async (platform: string) => {
     if (!product) return;
     
@@ -428,7 +444,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
                 </button>
                 
                 <button
-                  onClick={() => setShowPurchaseForm(true)}
+                  onClick={handleBuyNow}
                   className="w-full bg-blue-600 text-white py-3 sm:py-4 px-4 sm:px-6 rounded-lg hover:bg-blue-700 transition-colors font-semibold text-base sm:text-lg"
                 >
                   Buy Now

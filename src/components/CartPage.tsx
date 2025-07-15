@@ -93,70 +93,10 @@ export const CartPage: React.FC<CartPageProps> = ({
     setIsSubmitting(true);
 
     try {
-      // Create order in database
-      const orderData = {
-        customer_name: formData.customer_name,
-        customer_phone: formData.customer_phone,
-        customer_email: formData.customer_email || '',
-        customer_address: formData.customer_address || '',
-        notes: formData.notes || '',
-        total_amount: totalPrice,
-        status: 'pending',
-        items: items.map(item => ({
-          product_id: item.id,
-          quantity: item.quantity,
-          price: item.price,
-          product_name: item.name,
-          product_image: item.image_url,
-        })),
-      };
-
-      // Here you would typically save to your database
-      // For now, we'll just show the WhatsApp message
+      // Navigate to order form with cart data
+      navigate('/order');
       
-      // Create WhatsApp message
-      const itemsList = items.map(item => 
-        `• ${item.name} - ${item.price.toFixed(2)} DA x${item.quantity}`
-      ).join('\n');
-
-      const whatsappMessage = `🛒 *New Order*
-
-*Customer Information:*
-👤 Name: ${formData.customer_name}
-📱 Phone: ${formData.customer_phone}
-${formData.customer_email ? `📧 Email: ${formData.customer_email}` : ''}
-${formData.customer_address ? `📍 Address: ${formData.customer_address}` : ''}
-
-*Order Details:*
-${itemsList}
-
-*Total: ${totalPrice.toFixed(2)} DA* (${getTotalInDZD()})
-
-${formData.notes ? `*Notes:* ${formData.notes}` : ''}
-
-Please confirm this order and provide delivery information.`;
-
-      // Open WhatsApp
-      const whatsappNumber = '+1234567890'; // Replace with your admin WhatsApp
-      const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(whatsappMessage)}`;
-      
-      window.open(whatsappUrl, '_blank');
-      
-      // Clear cart and close
-      clearCart();
-      setShowOrderForm(false);
-      setFormData({
-        customer_name: '',
-        customer_phone: '',
-        customer_email: '',
-        customer_address: '',
-        notes: '',
-      });
-      
-      toast.success('Order submitted successfully! Check WhatsApp for confirmation.');
       onClose();
-      // Redirige vers la page de succès
-      navigate('/order-success');
     } catch (error) {
       console.error('Error submitting order:', error);
       toast.error('Failed to submit order. Please try again.');

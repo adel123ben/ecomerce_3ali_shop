@@ -1,123 +1,353 @@
 import React, { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { useCartStore } from '../store/cartStore';
+import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, CreditCard, Truck, User, Mail, Phone, MapPin, MessageSquare } from 'lucide-react';
 
-export default function OrderForm() {
+const orderSchema = z.object({
+  customer_name: z.string().min(2, 'Full name is required'),
+  customer_email: z.string().email('Valid email is required'),
+  customer_phone: z.string().min(10, 'Valid phone number is required'),
+  customer_address: z.string().min(10, 'Shipping address is required'),
+  payment_method: z.enum(['cash_on_delivery', 'bank_transfer', 'credit_card'], {
+    required_error: 'Please select a payment method'
+  }),
+  special_instructions: z.string().optional(),
+});
+
+type OrderFormData = z.infer<typeof orderSchema>;
+
+interface OrderFormProps {
+  singleProduct?: {
+    id: string;
+    name: string;
+    price: number;
+    image_url?: string;
+    quantity: number;
+  };
+}
+
+export const OrderForm: React.FC<OrderFormProps> = ({ singleProduct }) => {
   const { items, totalPrice, clearCart } = useCartStore();
   const navigate = useNavigate();
-  const [form, setForm] = useState({
-    name: '',
-    email: '',
-    country: '',
-    city: '',
-    phone: '',
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<OrderFormData>({
+    resolver: zodResolver(orderSchema),
   });
-  const [submitting, setSubmitting] = useState(false);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
+  // Determine if this is a single product order or cart order
+  const orderItems = singleProduct 
+    ? [singleProduct] 
+    : items.map(item => ({
+        id: item.id,
+        name: item.name,
+        price: item.price,
+        image_url: item.image_url,
+        quantity: item.quantity,
+      }));
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.name || !form.email || !form.country || !form.city || !form.phone) {
-      toast.error('Merci de remplir tous les champs obligatoires.');
+  const orderTotal = singleProduct 
+    ? singleProduct.price * singleProduct.quantity 
+    : totalPrice;
+
+  const shippingCost = orderTotal > 5000 ? 0 : 500; // Free shipping over 5000 DA
+  const finalTotal = orderTotal + shippingCost;
+
+  const onSubmit = async (data: OrderFormData) => {
+    if (orderItems.length === 0) {
+      toast.error('No items to order');
       return;
     }
-    if (items.length === 0) {
-      toast.error('Votre panier est vide.');
-      return;
+
+    setIsSubmitting(true);
+
+    try {
+      // Create order in database
+      const { data: order, error: orderError } = await supabase
+        .from('orders')
+        .insert([{
+          customer_name: data.customer_name,
+          customer_email: data.customer_email,
+          customer_phone: data.customer_phone,
+          customer_address: data.customer_address,
+          payment_method: data.payment_method,
+          special_instructions: data.special_instructions || '',
+          total_amount: finalTotal,
+          shipping_cost: shippingCost,
+          subtotal: orderTotal,
+          status: 'pending',
+        }])
+        .select()
+        .single();
+
+      if (orderError) throw orderError;
+
+      // Create order items
+      const orderItemsData = orderItems.map(item => ({
+        order_id: order.id,
+        product_id: item.id,
+        product_name: item.name,
+        product_image: item.image_url,
+        quantity: item.quantity,
+        price: item.price,
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('order_items')
+        .insert(orderItemsData);
+
+      if (itemsError) throw itemsError;
+
+      // Clear cart if it was a cart checkout
+      if (!singleProduct) {
+        clearCart();
+      }
+
+      toast.success('Order placed successfully!');
+      navigate('/order-success', { 
+        state: { 
+          orderId: order.id,
+          orderNumber: order.id.slice(0, 8).toUpperCase(),
+          customerName: data.customer_name,
+          total: finalTotal
+        } 
+      });
+
+    } catch (error) {
+      console.error('Error creating order:', error);
+      toast.error('Failed to place order. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
-    setSubmitting(true);
-    // Ici tu peux envoyer la commande à ton backend/supabase
-    setTimeout(() => {
-      clearCart();
-      toast.success('Commande envoyée avec succès !');
-      navigate('/order-success');
-    }, 1000);
   };
+
+  const paymentMethods = [
+    { value: 'cash_on_delivery', label: 'Cash on Delivery', icon: Truck },
+    { value: 'bank_transfer', label: 'Bank Transfer', icon: CreditCard },
+    { value: 'credit_card', label: 'Credit Card', icon: CreditCard },
+  ];
 
   return (
-    <div className="min-h-screen bg-white py-8 md:py-16">
-      <form onSubmit={handleSubmit} className="mx-auto max-w-screen-xl px-4 2xl:px-0">
-        <ol className="items-center flex w-full max-w-2xl text-center text-sm font-medium text-gray-500 sm:text-base">
-          <li className="after:border-1 flex items-center text-primary-700 after:mx-6 after:hidden after:h-1 after:w-full after:border-b after:border-gray-200 sm:after:inline-block sm:after:content-[''] md:w-full xl:after:mx-10">
-            <span className="flex items-center after:mx-2 after:text-gray-200 after:content-['/'] sm:after:hidden">
-              Panier
-            </span>
-          </li>
-          <li className="after:border-1 flex items-center text-primary-700 after:mx-6 after:hidden after:h-1 after:w-full after:border-b after:border-gray-200 sm:after:inline-block sm:after:content-[''] md:w-full xl:after:mx-10">
-            <span className="flex items-center after:mx-2 after:text-gray-200 after:content-['/'] sm:after:hidden">
-              Checkout
-            </span>
-          </li>
-          <li className="flex shrink-0 items-center">Order summary</li>
-        </ol>
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="mb-8">
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 mb-4"
+          >
+            <ArrowLeft className="h-5 w-5" />
+            <span>Back</span>
+          </button>
+          <h1 className="text-3xl font-bold text-gray-900">Checkout</h1>
+          <p className="text-gray-600 mt-2">Complete your order details</p>
+        </div>
 
-        <div className="mt-6 sm:mt-8 lg:flex lg:items-start lg:gap-12 xl:gap-16">
-          <div className="min-w-0 flex-1 space-y-8">
-            <div className="space-y-4">
-              <h2 className="text-xl font-semibold text-gray-900">Détails de livraison</h2>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Order Form */}
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-6">Order Information</h2>
+            
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+              {/* Customer Details */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium text-gray-900 flex items-center">
+                  <User className="h-5 w-5 mr-2" />
+                  Customer Details
+                </h3>
+                
                 <div>
-                  <label htmlFor="name" className="mb-2 block text-sm font-medium text-gray-900">Nom*</label>
-                  <input type="text" id="name" name="name" value={form.name} onChange={handleChange} className="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-primary-500 focus:ring-primary-500" required />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Full Name *
+                  </label>
+                  <input
+                    {...register('customer_name')}
+                    type="text"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter your full name"
+                  />
+                  {errors.customer_name && (
+                    <p className="text-red-500 text-sm mt-1">{errors.customer_name.message}</p>
+                  )}
                 </div>
+
                 <div>
-                  <label htmlFor="email" className="mb-2 block text-sm font-medium text-gray-900">Email*</label>
-                  <input type="email" id="email" name="email" value={form.email} onChange={handleChange} className="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-primary-500 focus:ring-primary-500" required />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Email Address *
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                    <input
+                      {...register('customer_email')}
+                      type="email"
+                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="your@email.com"
+                    />
+                  </div>
+                  {errors.customer_email && (
+                    <p className="text-red-500 text-sm mt-1">{errors.customer_email.message}</p>
+                  )}
                 </div>
+
                 <div>
-                  <label htmlFor="country" className="mb-2 block text-sm font-medium text-gray-900">Adresse*</label>
-                  <input type="text" id="country" name="country" value={form.country} onChange={handleChange} className="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-primary-500 focus:ring-primary-500" required />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Phone Number *
+                  </label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                    <input
+                      {...register('customer_phone')}
+                      type="tel"
+                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="+213 XXX XXX XXX"
+                    />
+                  </div>
+                  {errors.customer_phone && (
+                    <p className="text-red-500 text-sm mt-1">{errors.customer_phone.message}</p>
+                  )}
                 </div>
+
                 <div>
-                  <label htmlFor="city" className="mb-2 block text-sm font-medium text-gray-900">Ville*</label>
-                  <input type="text" id="city" name="city" value={form.city} onChange={handleChange} className="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-primary-500 focus:ring-primary-500" required />
-                </div>
-                <div>
-                  <label htmlFor="phone" className="mb-2 block text-sm font-medium text-gray-900">Téléphone*</label>
-                  <input type="tel" id="phone" name="phone" value={form.phone} onChange={handleChange} className="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-primary-500 focus:ring-primary-500" required />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Shipping Address *
+                  </label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                    <textarea
+                      {...register('customer_address')}
+                      rows={3}
+                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Enter your complete shipping address"
+                    />
+                  </div>
+                  {errors.customer_address && (
+                    <p className="text-red-500 text-sm mt-1">{errors.customer_address.message}</p>
+                  )}
                 </div>
               </div>
-            </div>
-            <div className="mt-8">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Votre panier</h2>
-              {items.length === 0 ? (
-                <div className="text-gray-500">Votre panier est vide.</div>
-              ) : (
-                <ul className="divide-y divide-gray-200">
-                  {items.map((item) => (
-                    <li key={item.id} className="flex items-center justify-between py-4">
-                      <div className="flex items-center gap-4">
-                        <img src={item.image_url} alt={item.name} className="w-16 h-16 object-cover rounded" />
-                        <div>
-                          <div className="font-medium text-gray-900">{item.name}</div>
-                          <div className="text-sm text-gray-500">{item.price} DA x {item.quantity}</div>
-                        </div>
-                      </div>
-                      <div className="font-bold text-gray-900">{(item.price * item.quantity).toFixed(2)} DA</div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <div className="flex justify-end mt-4">
-                <span className="text-lg font-bold text-gray-900">Total : {totalPrice.toFixed(2)} DA</span>
+
+              {/* Payment Method */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium text-gray-900">Payment Method</h3>
+                <div className="space-y-3">
+                  {paymentMethods.map((method) => {
+                    const Icon = method.icon;
+                    return (
+                      <label key={method.value} className="flex items-center p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                        <input
+                          {...register('payment_method')}
+                          type="radio"
+                          value={method.value}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                        />
+                        <Icon className="h-5 w-5 ml-3 mr-2 text-gray-600" />
+                        <span className="text-sm font-medium text-gray-900">{method.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+                {errors.payment_method && (
+                  <p className="text-red-500 text-sm mt-1">{errors.payment_method.message}</p>
+                )}
               </div>
-            </div>
-            <div className="mt-8 flex justify-end">
+
+              {/* Special Instructions */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Special Instructions (Optional)
+                </label>
+                <div className="relative">
+                  <MessageSquare className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                  <textarea
+                    {...register('special_instructions')}
+                    rows={3}
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Any special delivery instructions or notes..."
+                  />
+                </div>
+              </div>
+
+              {/* Submit Button */}
               <button
                 type="submit"
-                disabled={submitting}
-                className="bg-black text-white px-8 py-3 rounded-lg font-semibold hover:bg-gray-800 transition-colors disabled:opacity-50"
+                disabled={isSubmitting}
+                className="w-full bg-blue-600 text-white py-4 px-6 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {submitting ? 'Envoi...' : 'Valider la commande'}
+                {isSubmitting ? 'Processing Order...' : `Place Order - ${finalTotal.toFixed(2)} DA`}
               </button>
+            </form>
+          </div>
+
+          {/* Order Summary */}
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-6">Order Summary</h2>
+            
+            {/* Order Items */}
+            <div className="space-y-4 mb-6">
+              {orderItems.map((item, index) => (
+                <div key={index} className="flex items-center space-x-4 p-4 bg-gray-50 rounded-lg">
+                  <div className="w-16 h-16 bg-gray-200 rounded-lg overflow-hidden">
+                    <img
+                      src={item.image_url || '/placeholder-product.jpg'}
+                      alt={item.name}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-medium text-gray-900">{item.name}</h3>
+                    <p className="text-sm text-gray-600">Qty: {item.quantity}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-medium text-gray-900">
+                      {(item.price * item.quantity).toFixed(2)} DA
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      {item.price.toFixed(2)} DA each
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Order Totals */}
+            <div className="border-t pt-4 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Subtotal</span>
+                <span className="text-gray-900">{orderTotal.toFixed(2)} DA</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Shipping</span>
+                <span className="text-gray-900">
+                  {shippingCost === 0 ? 'Free' : `${shippingCost.toFixed(2)} DA`}
+                </span>
+              </div>
+              {shippingCost === 0 && (
+                <p className="text-xs text-green-600">Free shipping on orders over 5,000 DA</p>
+              )}
+              <div className="flex justify-between text-lg font-semibold pt-2 border-t">
+                <span>Total</span>
+                <span>{finalTotal.toFixed(2)} DA</span>
+              </div>
+            </div>
+
+            {/* Security Notice */}
+            <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+              <p className="text-sm text-blue-800">
+                🔒 Your order information is secure and encrypted. We'll send you a confirmation email once your order is processed.
+              </p>
             </div>
           </div>
         </div>
-      </form>
+      </div>
     </div>
   );
-}
+};

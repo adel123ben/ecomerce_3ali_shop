@@ -21,7 +21,7 @@ import OrderSuccess from './components/OrderSuccess';
 import { HeroCarousel } from './components/HeroCarousel';
 import SearchResults from './components/SearchResults';
 import SideDrawer from './components/SideDrawer';
-import OrderForm from './components/OrderForm';
+import { OrderForm } from './components/OrderForm';
 
 // Modern, dismissible announcement bar
 function AnnouncementBar({ visible, onClose }: { visible: boolean; onClose: () => void }) {
@@ -277,7 +277,7 @@ function App() {
           element={<ProductDetailRoute products={products} announcementBarVisible={barVisible} />}
         />
         <Route path="/order-success" element={<OrderSuccess />} />
-        <Route path="/order" element={<OrderForm />} />
+        <Route path="/order" element={<OrderFormRoute />} />
       </Routes>
       <Footer />
       <WhatsAppButton />
@@ -301,4 +301,11 @@ function ProductDetailRoute({ products, announcementBarVisible }: { products: Pr
   return <ProductDetailPage product={product} announcementBarVisible={announcementBarVisible} />;
 }
 
+// Route handler for /order
+function OrderFormRoute() {
+  const location = useLocation();
+  const singleProduct = location.state?.singleProduct;
+  
+  return <OrderForm singleProduct={singleProduct} />;
+}
 export default App;
