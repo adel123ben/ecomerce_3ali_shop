@@ -169,7 +169,7 @@ export default function SideDrawer({ open, onClose, title = 'Shopping cart', pro
                             onClose();
                             navigate('/order');
                           }}
-                          className="w-full flex items-center justify-center rounded-md border border-transparent bg-indigo-600 px-6 py-3 text-base font-medium text-white shadow-xs hover:bg-indigo-700 transition-colors"
+                          className="w-full flex items-center justify-center rounded-md border border-transparent bg-blue-600 px-6 py-3 text-base font-medium text-white shadow-xs hover:bg-blue-700 transition-colors"
                         >
                           Checkout
                         </button>
@@ -182,7 +182,7 @@ export default function SideDrawer({ open, onClose, title = 'Shopping cart', pro
                       <button
                         type="button"
                         onClick={onClose}
-                        className="font-medium text-indigo-600 hover:text-indigo-500"
+                        className="font-medium text-blue-600 hover:text-blue-500"
                       >
                         Continue Shopping
                         <span aria-hidden="true"> &rarr;</span>

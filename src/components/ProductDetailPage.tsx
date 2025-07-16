@@ -1,20 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { X, Heart, Share2, Star, ChevronLeft, ChevronRight, ZoomIn, Minus, Plus, ShoppingCart, Check } from 'lucide-react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import toast from 'react-hot-toast';
-import { Product, PurchaseFormData } from '../types';
-import { supabase } from '../lib/supabase';
+import { Product } from '../types';
 import { useNavigate } from 'react-router-dom';
 import { useCartStore } from '../store/cartStore';
 import { CartPage } from './CartPage';
 import ReactDOM from 'react-dom';
-
-const purchaseSchema = z.object({
-  customer_name: z.string().min(2, 'Name must be at least 2 characters'),
-  phone: z.string().regex(/^\+?[1-9]\d{1,14}$/, 'Please enter a valid phone number'),
-});
 
 interface ProductDetailPageProps {
   product: Product | null;
@@ -26,8 +17,6 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [isZoomed, setIsZoomed] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showPurchaseForm, setShowPurchaseForm] = useState(false);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const { addToCart, getCartItem, updateQuantity, totalItems, addToWishlist, removeFromWishlist, isInWishlist } = useCartStore();
   const isLiked = product ? isInWishlist(product.id) : false;
@@ -35,15 +24,6 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
   const [isSliding, setIsSliding] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
-
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    reset,
-  } = useForm<PurchaseFormData>({
-    resolver: zodResolver(purchaseSchema),
-  });
 
   const navigate = useNavigate();
 
@@ -187,37 +167,6 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
         await navigator.clipboard.writeText(url);
         toast.success('Link copied to clipboard');
         break;
-    }
-  };
-
-  const onSubmit = async (data: PurchaseFormData) => {
-    if (!product) return;
-    setIsSubmitting(true);
-    try {
-      const { error } = await supabase
-        .from('inquiries')
-        .insert([
-          {
-            product_id: product.id,
-            customer_name: data.customer_name,
-            phone: data.phone,
-          },
-        ]);
-      if (error) throw error;
-      const whatsappMessage = `Hi! I'm interested in purchasing ${product.name}
-\nProduct Details:\n- Name: ${product.name}\n- Price: ${product.price.toFixed(2)} DA\n- Quantity: ${quantity}\n\nCustomer Information:\n- Name: ${data.customer_name}\n- Phone: ${data.phone}\n\nPlease let me know about availability and next steps. Thank you!`;
-      const whatsappNumber = '+1234567890';
-      const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(whatsappMessage)}`;
-      window.open(whatsappUrl, '_blank');
-      toast.success('Inquiry submitted successfully!');
-      reset();
-      setShowPurchaseForm(false);
-      navigate('/order-success');
-    } catch (error) {
-      console.error('Error submitting inquiry:', error);
-      toast.error('Failed to submit inquiry. Please try again.');
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -521,63 +470,6 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
           )}
         </div>
       </div>
-
-      {/* Purchase Form Modal */}
-      {showPurchaseForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold">Complete Your Purchase</h3>
-              <button
-                onClick={() => setShowPurchaseForm(false)}
-                className="p-2 hover:bg-gray-100 rounded-full"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Full Name *
-                </label>
-                <input
-                  {...register('customer_name')}
-                  type="text"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Enter your full name"
-                />
-                {errors.customer_name && (
-                  <p className="text-red-500 text-sm mt-1">{errors.customer_name.message}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Phone Number *
-                </label>
-                <input
-                  {...register('phone')}
-                  type="tel"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="+1234567890"
-                />
-                {errors.phone && (
-                  <p className="text-red-500 text-sm mt-1">{errors.phone.message}</p>
-                )}
-              </div>
-
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50"
-              >
-                {isSubmitting ? 'Submitting...' : 'Contact via WhatsApp'}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Cart Modal */}
       {isCartOpen && (

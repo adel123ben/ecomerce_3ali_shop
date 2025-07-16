@@ -80,29 +80,14 @@ export const CartPage: React.FC<CartPageProps> = ({
   };
 
   const handleSubmitOrder = async () => {
-    if (!formData.customer_name || !formData.customer_phone) {
-      toast.error('Please fill in your name and phone number');
-      return;
-    }
-
     if (items.length === 0) {
       toast.error('Your cart is empty');
       return;
     }
 
-    setIsSubmitting(true);
-
-    try {
-      // Navigate to order form with cart data
-      navigate('/order');
-      
-      onClose();
-    } catch (error) {
-      console.error('Error submitting order:', error);
-      toast.error('Failed to submit order. Please try again.');
-    } finally {
-      setIsSubmitting(false);
-    }
+    // Navigate to order form with cart data
+    navigate('/order');
+    onClose();
   };
 
   if (!isOpen) return null;
@@ -370,7 +355,7 @@ export const CartPage: React.FC<CartPageProps> = ({
                     onClick={() => setShowOrderForm(true)}
                     className="px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors flex items-center space-x-2"
                   >
-                    <MessageCircle className="h-4 w-4" />
+                    <ShoppingCart className="h-4 w-4" />
                     <span>Checkout</span>
                   </button>
                 </div>
@@ -385,12 +370,11 @@ export const CartPage: React.FC<CartPageProps> = ({
                 </button>
                 <button
                   onClick={handleSubmitOrder}
-                  disabled={isSubmitting}
-                  className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2 disabled:opacity-50"
+                  className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
                 >
-                  <MessageCircle className="h-4 w-4" />
+                  <ShoppingCart className="h-4 w-4" />
                   <span>
-                    {isSubmitting ? 'Processing...' : 'Submit Order via WhatsApp'}
+                    Proceed to Checkout
                   </span>
                 </button>
               </div>
