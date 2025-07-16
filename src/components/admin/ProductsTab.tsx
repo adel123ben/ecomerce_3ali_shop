@@ -26,6 +26,7 @@ export const ProductsTab: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [productImages, setProductImages] = useState<string[]>([]);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const {
     register,
@@ -86,6 +87,7 @@ export const ProductsTab: React.FC = () => {
   };
 
   const onSubmit = async (data: ProductFormData) => {
+    setIsUpdating(true);
     try {
       if (productImages.length === 0) {
         toast.error('Please upload at least one product image');
@@ -137,6 +139,8 @@ export const ProductsTab: React.FC = () => {
     } catch (error) {
       console.error('Error saving product:', error);
       toast.error('Failed to save product');
+    } finally {
+      setIsUpdating(false);
     }
   };
 

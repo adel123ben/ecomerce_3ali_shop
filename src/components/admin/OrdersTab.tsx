@@ -155,6 +155,42 @@ export const OrdersTab: React.FC = () => {
 
   const updateOrderStatus = async (orderId: string, newStatus: Order['status']) => {
     try {
+      // Trouver la commande concernée
+      const order = orders.find(o => o.id === orderId);
+      if (!order) throw new Error('Order not found');
+
+      // Si on passe de pending à confirmed, décrémente le stock
+      if (order.status === 'pending' && newStatus === 'confirmed' && order.items) {
+        for (const item of order.items) {
+          if (item.product_id) {
+            // Récupère la quantité actuelle
+            const { data: productData, error: fetchError } = await supabase
+              .from('products')
+              .select('stock_quantity')
+              .eq('id', item.product_id)
+              .single();
+
+            if (fetchError || !productData) {
+              toast.error(`Failed to fetch stock for product ${item.product_name}`);
+              return;
+            }
+
+            const newStock = productData.stock_quantity - item.quantity;
+
+            const { error: updateError } = await supabase
+              .from('products')
+              .update({ stock_quantity: newStock })
+              .eq('id', item.product_id);
+
+            if (updateError) {
+              toast.error(`Failed to update stock for product ${item.product_name}`);
+              return;
+            }
+          }
+        }
+      }
+
+      // Met à jour le statut de la commande
       const { error } = await supabase
         .from('orders')
         .update({ 

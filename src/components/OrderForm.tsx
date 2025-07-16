@@ -66,6 +66,27 @@ export const OrderForm: React.FC<OrderFormProps> = ({ singleProduct }) => {
       return;
     }
 
+    // Vérification du stock pour chaque produit
+    for (const item of orderItems) {
+      const { data: productData, error: fetchError } = await supabase
+        .from('products')
+        .select('in_stock, stock_quantity')
+        .eq('id', item.id)
+        .single();
+      if (fetchError || !productData) {
+        toast.error('Erreur lors de la vérification du stock');
+        return;
+      }
+      if (!productData.in_stock || productData.stock_quantity <= 0) {
+        toast.error(`Produit out of stock: ${item.name}`);
+        return;
+      }
+      if (item.quantity > productData.stock_quantity) {
+        toast.error(`Stock insuffisant pour le produit: ${item.name}`);
+        return;
+      }
+    }
+
     setIsSubmitting(true);
 
     try {

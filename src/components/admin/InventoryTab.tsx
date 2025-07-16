@@ -20,8 +20,6 @@ export const InventoryTab: React.FC = () => {
 
   const fetchInventory = async () => {
     try {
-      // For demo purposes, we'll simulate inventory data
-      // In a real app, you'd have inventory tables
       const { data: products, error } = await supabase
         .from('products')
         .select(`
@@ -31,12 +29,12 @@ export const InventoryTab: React.FC = () => {
 
       if (error) throw error;
 
-      // Simulate inventory data
+      // Utilise les vraies valeurs de stock, low_stock_threshold fixé à 5
       const inventoryData: InventoryItem[] = (products || []).map((product) => ({
         ...product,
-        stock_quantity: Math.floor(Math.random() * 100) + 1,
-        low_stock_threshold: 10,
-        total_inquiries: Math.floor(Math.random() * 50),
+        stock_quantity: product.stock_quantity,
+        low_stock_threshold: 5, // valeur fixe, configurable si besoin
+        total_inquiries: 0, // ou simuler si pas de vraie donnée
       }));
 
       setInventory(inventoryData);
@@ -50,18 +48,18 @@ export const InventoryTab: React.FC = () => {
   const filteredInventory = inventory.filter((item) => {
     switch (filter) {
       case 'low_stock':
-        return item.stock_quantity <= item.low_stock_threshold && item.stock_quantity > 0;
+        return item.in_stock && item.stock_quantity > 0 && item.stock_quantity <= item.low_stock_threshold;
       case 'out_of_stock':
-        return item.stock_quantity === 0;
+        return !item.in_stock || item.stock_quantity <= 0;
       default:
         return true;
     }
   });
 
   const getStockStatus = (item: InventoryItem) => {
-    if (item.stock_quantity === 0) {
+    if (!item.in_stock || item.stock_quantity <= 0) {
       return { status: 'Out of Stock', color: 'text-red-600 bg-red-100', icon: AlertTriangle };
-    } else if (item.stock_quantity <= item.low_stock_threshold) {
+    } else if (item.in_stock && item.stock_quantity > 0 && item.stock_quantity <= item.low_stock_threshold) {
       return { status: 'Low Stock', color: 'text-yellow-600 bg-yellow-100', icon: AlertTriangle };
     } else {
       return { status: 'In Stock', color: 'text-green-600 bg-green-100', icon: Package };
@@ -69,8 +67,8 @@ export const InventoryTab: React.FC = () => {
   };
 
   const totalValue = inventory.reduce((sum, item) => sum + (item.price * item.stock_quantity), 0);
-  const lowStockItems = inventory.filter(item => item.stock_quantity <= item.low_stock_threshold && item.stock_quantity > 0).length;
-  const outOfStockItems = inventory.filter(item => item.stock_quantity === 0).length;
+  const lowStockItems = inventory.filter(item => item.in_stock && item.stock_quantity > 0 && item.stock_quantity <= item.low_stock_threshold).length;
+  const outOfStockItems = inventory.filter(item => !item.in_stock || item.stock_quantity <= 0).length;
 
   if (loading) {
     return <div className="text-center py-12">Loading inventory...</div>;

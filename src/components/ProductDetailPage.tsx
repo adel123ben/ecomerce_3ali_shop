@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Heart, Share2, Star, ChevronLeft, ChevronRight, ZoomIn, Minus, Plus, ShoppingCart, Check, ArrowRight } from 'lucide-react';
+import { X, Heart, Share2, Star, ChevronLeft, ChevronRight, ZoomIn, Minus, Plus, ShoppingCart, Check, ArrowRight, MessageCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Product } from '../types';
 import { useNavigate } from 'react-router-dom';
@@ -108,6 +108,10 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
 
   const handleAddToCart = () => {
     if (!product) return;
+    if (!product.in_stock || product.stock_quantity <= 0) {
+      toast.error('Produit out of stock');
+      return;
+    }
     const cartItem = getCartItem(product.id);
     const newQuantity = (cartItem?.quantity || 0) + quantity;
     if (newQuantity > maxQuantity) {
@@ -135,7 +139,10 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
 
   const handleBuyNow = () => {
     if (!product) return;
-    
+    if (!product.in_stock || product.stock_quantity <= 0) {
+      toast.error('Produit out of stock');
+      return;
+    }
     // Navigate to order form with single product data
     navigate('/order', {
       state: {
@@ -338,6 +345,14 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
                     <span className="ml-2 text-xs font-medium text-gray-700 sm:hidden">
                       {isLiked ? 'Retirer' : 'Ajouter'}
                     </span>
+                  </button>
+                  {/* Ajout de l'icône MessageCircle */}
+                  <button
+                    onClick={() => navigate(`/inquiry?productId=${product.id}`)}
+                    className="p-2 sm:p-2.5 transition-all duration-200 rounded-full border flex items-center justify-center group text-green-600 hover:text-green-700 hover:bg-green-100 border-green-300 ml-1"
+                    aria-label="Demander ou signaler un problème sur ce produit"
+                  >
+                    <MessageCircle className="h-7 w-7 sm:h-6 sm:w-6" />
                   </button>
                   <div className="flex items-center ml-2">
                     {[...Array(5)].map((_, i) => (

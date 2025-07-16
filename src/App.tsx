@@ -20,8 +20,8 @@ import Typewriter from './components/Typewriter';
 import OrderSuccess from './components/OrderSuccess';
 import { HeroCarousel } from './components/HeroCarousel';
 import SearchResults from './components/SearchResults';
-import SideDrawer from './components/SideDrawer';
 import { OrderForm } from './components/OrderForm';
+import { InquiryForm } from './components/InquiryForm';
 
 // Modern, dismissible announcement bar
 function AnnouncementBar({ visible, onClose }: { visible: boolean; onClose: () => void }) {
@@ -278,6 +278,7 @@ function App() {
         />
         <Route path="/order-success" element={<OrderSuccess />} />
         <Route path="/order" element={<OrderFormRoute />} />
+        <Route path="/inquiry" element={<InquiryForm />} />
       </Routes>
       <Footer />
       <WhatsAppButton />

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MessageSquare, ExternalLink, Calendar, Trash2, CheckCircle } from 'lucide-react';
+import { MessageSquare, ExternalLink, Calendar, Trash2, CheckCircle, Eye } from 'lucide-react';
 import { Inquiry } from '../../types';
 import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
@@ -8,6 +8,7 @@ export const InquiriesTab: React.FC = () => {
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [viewMessage, setViewMessage] = useState<string | null>(null);
 
   useEffect(() => {
     fetchInquiries();
@@ -113,10 +114,13 @@ Phone: ${inquiry.phone}`;
                   Customer
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Phone
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Product
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Date
+                  Message
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
@@ -126,47 +130,28 @@ Phone: ${inquiry.phone}`;
             <tbody className="bg-white divide-y divide-gray-200">
               {inquiries.map((inquiry) => (
                 <tr key={inquiry.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0 h-10 w-10">
-                        <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                          <MessageSquare className="h-5 w-5 text-blue-600" />
-                        </div>
-                      </div>
-                      <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900">
-                          {inquiry.customer_name}
-                        </div>
-                        <div className="text-sm text-gray-500">{inquiry.phone}</div>
-                      </div>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{inquiry.customer_name}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{inquiry.phone}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <div className="flex items-center space-x-2">
+                      {inquiry.product?.image_url && (
+                        <img
+                          src={inquiry.product.image_url}
+                          alt={inquiry.product.name}
+                          className="w-10 h-10 rounded-lg object-cover border border-gray-200"
+                        />
+                      )}
+                      <span>{inquiry.product?.name}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {inquiry.product && (
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0 h-10 w-10">
-                          <img
-                            className="h-10 w-10 rounded-lg object-cover"
-                            src={inquiry.product.image_url || '/placeholder-product.jpg'}
-                            alt={inquiry.product.name}
-                          />
-                        </div>
-                        <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">
-                            {inquiry.product.name}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            {inquiry.product.price.toFixed(2)} DA
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center text-sm text-gray-900">
-                      <Calendar className="h-4 w-4 mr-2 text-gray-400" />
-                      {formatDate(inquiry.created_at)}
-                    </div>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <button
+                      onClick={() => setViewMessage(inquiry.message)}
+                      className="text-blue-600 hover:text-blue-900 p-2 rounded-lg hover:bg-blue-50 transition-colors"
+                      title="Voir le message complet"
+                    >
+                      <Eye className="h-5 w-5" />
+                    </button>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex items-center space-x-2">
@@ -207,6 +192,22 @@ Phone: ${inquiry.phone}`;
           </div>
         )}
       </div>
+
+      {/* Modal pour afficher le message complet */}
+      {viewMessage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 px-2">
+          <div className="bg-white rounded-lg shadow-lg p-6 max-w-md w-full mx-auto">
+            <h2 className="text-lg font-bold mb-4 text-gray-900">Message du client</h2>
+            <div className="text-gray-800 whitespace-pre-line break-words mb-6 max-h-60 overflow-y-auto">{viewMessage}</div>
+            <button
+              onClick={() => setViewMessage(null)}
+              className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors mt-2"
+            >
+              Fermer
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
