@@ -1,17 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { MessageSquare, ExternalLink, Calendar } from 'lucide-react';
+import { MessageSquare, ExternalLink, Calendar, Trash2, CheckCircle } from 'lucide-react';
 import { Inquiry } from '../../types';
 import { supabase } from '../../lib/supabase';
+import toast from 'react-hot-toast';
 
 export const InquiriesTab: React.FC = () => {
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchInquiries();
   }, []);
 
   const fetchInquiries = async () => {
+    setLoading(true);
     try {
       const { data, error } = await supabase
         .from('inquiries')
@@ -25,11 +28,33 @@ export const InquiriesTab: React.FC = () => {
       setInquiries(data || []);
     } catch (error) {
       console.error('Error fetching inquiries:', error);
+      toast.error('Failed to load inquiries');
     } finally {
       setLoading(false);
     }
   };
 
+  const deleteInquiry = async (inquiryId: string) => {
+    if (!confirm('Are you sure you want to delete this inquiry?')) return;
+    
+    setDeletingId(inquiryId);
+    try {
+      const { error } = await supabase
+        .from('inquiries')
+        .delete()
+        .eq('id', inquiryId);
+
+      if (error) throw error;
+      
+      setInquiries(prev => prev.filter(inquiry => inquiry.id !== inquiryId));
+      toast.success('Inquiry deleted successfully');
+    } catch (error) {
+      console.error('Error deleting inquiry:', error);
+      toast.error('Failed to delete inquiry');
+    } finally {
+      setDeletingId(null);
+    }
+  };
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -43,24 +68,39 @@ export const InquiriesTab: React.FC = () => {
   const generateWhatsAppLink = (inquiry: Inquiry) => {
     if (!inquiry.product) return '#';
     
-    const message = `Hi! I'm interested in ${inquiry.product.name} (Price: $${inquiry.product.price.toFixed(2)})
+    const message = `Hi! I'm interested in ${inquiry.product.name} (Price: ${inquiry.product.price.toFixed(2)} DA)
 
 Name: ${inquiry.customer_name}
 Phone: ${inquiry.phone}`;
 
-    return `https://wa.me/${inquiry.phone}?text=${encodeURIComponent(message)}`;
+    // Use a business WhatsApp number instead of customer's phone
+    const businessPhone = '+213123456789'; // Replace with actual business number
+    return `https://wa.me/${businessPhone}?text=${encodeURIComponent(message)}`;
   };
 
   if (loading) {
-    return <div className="text-center py-12">Loading inquiries...</div>;
+    return (
+      <div className="text-center py-12">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+        <p className="mt-4 text-gray-600">Loading inquiries...</p>
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-gray-900">Customer Inquiries</h1>
-        <div className="text-sm text-gray-500">
-          Total: {inquiries.length} inquiries
+        <div className="flex items-center space-x-4">
+          <button
+            onClick={fetchInquiries}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"
+          >
+            Refresh
+          </button>
+          <div className="text-sm text-gray-500">
+            Total: {inquiries.length} inquiries
+          </div>
         </div>
       </div>
 
@@ -116,7 +156,7 @@ Phone: ${inquiry.phone}`;
                             {inquiry.product.name}
                           </div>
                           <div className="text-sm text-gray-500">
-                            ${inquiry.product.price.toFixed(2)}
+                            {inquiry.product.price.toFixed(2)} DA
                           </div>
                         </div>
                       </div>
@@ -129,15 +169,29 @@ Phone: ${inquiry.phone}`;
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <a
-                      href={generateWhatsAppLink(inquiry)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-green-600 hover:text-green-900 flex items-center space-x-1"
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                      <span>Contact</span>
-                    </a>
+                    <div className="flex items-center space-x-2">
+                      <a
+                        href={generateWhatsAppLink(inquiry)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-green-600 hover:text-green-900 p-2 rounded-lg hover:bg-green-50 transition-colors"
+                        title="Contact via WhatsApp"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </a>
+                      <button
+                        onClick={() => deleteInquiry(inquiry.id)}
+                        disabled={deletingId === inquiry.id}
+                        className="text-red-600 hover:text-red-900 p-2 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
+                        title="Delete inquiry"
+                      >
+                        {deletingId === inquiry.id ? (
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -149,6 +203,7 @@ Phone: ${inquiry.phone}`;
           <div className="text-center py-12">
             <MessageSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-500">No customer inquiries yet</p>
+            <p className="text-sm text-gray-400 mt-2">Customer inquiries will appear here when they submit product interest forms</p>
           </div>
         )}
       </div>

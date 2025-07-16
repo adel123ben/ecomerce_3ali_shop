@@ -310,9 +310,17 @@ export const ProductsTab: React.FC = () => {
               </button>
               <button
                 type="submit"
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                disabled={isUpdating}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
               >
-                {editingProduct ? 'Update Product' : 'Add Product'}
+                {isUpdating ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>{editingProduct ? 'Updating...' : 'Creating...'}</span>
+                  </>
+                ) : (
+                  <span>{editingProduct ? 'Update Product' : 'Add Product'}</span>
+                )}
               </button>
             </div>
           </form>

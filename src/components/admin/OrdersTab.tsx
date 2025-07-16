@@ -378,25 +378,33 @@ export const OrdersTab: React.FC = () => {
                       {formatDate(order.created_at)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex space-x-2">
+                      <div className="flex items-center space-x-2">
                         <button
                           onClick={() => handleViewOrder(order)}
-                          className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50"
+                          className="text-blue-600 hover:text-blue-900 p-2 rounded-lg hover:bg-blue-50 transition-colors"
                           title="View Details"
                         >
                           <Eye className="h-4 w-4" />
                         </button>
-                        <select
-                          value={order.status}
-                          onChange={(e) => updateOrderStatus(order.id, e.target.value as Order['status'])}
-                          className="text-xs border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        >
-                          <option value="pending">Pending</option>
-                          <option value="confirmed">Confirmed</option>
-                          <option value="shipped">Shipped</option>
-                          <option value="delivered">Delivered</option>
-                          <option value="cancelled">Cancelled</option>
-                        </select>
+                        <div className="relative">
+                          <select
+                            value={order.status}
+                            onChange={(e) => updateOrderStatus(order.id, e.target.value as Order['status'])}
+                            className="text-xs border border-gray-300 rounded-lg px-3 py-2 pr-8 focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white hover:bg-gray-50 transition-colors cursor-pointer appearance-none"
+                            style={{ minWidth: '120px' }}
+                          >
+                            <option value="pending">Pending</option>
+                            <option value="confirmed">Confirmed</option>
+                            <option value="shipped">Shipped</option>
+                            <option value="delivered">Delivered</option>
+                            <option value="cancelled">Cancelled</option>
+                          </select>
+                          <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </div>
+                        </div>
                       </div>
                     </td>
                   </tr>

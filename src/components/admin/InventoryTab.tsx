@@ -135,7 +135,14 @@ export const InventoryTab: React.FC = () => {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-500">Total Value</p>
-              <p className="text-2xl font-bold text-gray-900">${totalValue.toFixed(2)}</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {totalValue.toLocaleString('en-DZ', { 
+                  style: 'currency', 
+                  currency: 'DZD',
+                  minimumFractionDigits: 0,
+                  maximumFractionDigits: 0
+                })}
+              </p>
             </div>
           </div>
         </div>

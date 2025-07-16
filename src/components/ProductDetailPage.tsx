@@ -430,42 +430,57 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
           </div>
 
           {/* Related Products */}
-          {allProducts.length > 0 && (
+          {(relatedProducts.length > 0 || allProducts.length > 0) && (
             <div className="mt-16">
               <h2 className="text-2xl font-bold text-gray-900 mb-8">You might also like</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {allProducts.slice(0, 5).map((relatedProduct) => (
+                {(relatedProducts.length > 0 ? relatedProducts : allProducts.slice(0, 4)).map((relatedProduct) => (
                   <button
                     key={relatedProduct.id}
-                    className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow text-left focus:outline-none focus:ring-2 focus:ring-black"
+                    className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-all duration-300 text-left focus:outline-none focus:ring-2 focus:ring-black transform hover:scale-105"
                     onClick={() => {
                       window.location.href = `/product/${relatedProduct.id}`;
                     }}
                     tabIndex={0}
                     aria-label={`View details for ${relatedProduct.name}`}
                   >
-                    <div className="aspect-square bg-gray-100">
+                    <div className="aspect-square bg-gray-100 overflow-hidden">
                       <img
                         src={relatedProduct.image_url || '/placeholder-product.jpg'}
                         alt={relatedProduct.name}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover transition-transform duration-300 hover:scale-110"
                       />
                     </div>
                     <div className="p-4">
-                      <h3 className="font-semibold text-gray-900 mb-2">{relatedProduct.name}</h3>
-                      <p className="text-xl font-bold text-blue-600">{relatedProduct.price.toLocaleString('en-US', { maximumFractionDigits: 0 })} DA</p>
+                      <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2">{relatedProduct.name}</h3>
+                      <div className="flex items-center justify-between">
+                        <p className="text-lg font-bold text-blue-600">{relatedProduct.price.toLocaleString('en-US', { maximumFractionDigits: 0 })} DA</p>
+                        <div className="flex items-center">
+                          {[...Array(5)].map((_, i) => (
+                            <Star key={i} className="h-3 w-3 text-yellow-400 fill-current" />
+                          ))}
+                        </div>
+                      </div>
+                      {relatedProduct.category && (
+                        <span className="inline-block mt-2 bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded-full">
+                          {relatedProduct.category.name}
+                        </span>
+                      )}
                     </div>
                   </button>
                 ))}
               </div>
-              <div className="flex justify-center mt-8">
-                <button
-                  onClick={() => navigate('/')}
-                  className="px-6 py-2 rounded-full bg-black text-white font-semibold text-base hover:bg-gray-800 transition-all shadow-lg"
-                >
-                  More
-                </button>
-              </div>
+              {relatedProducts.length === 0 && allProducts.length > 4 && (
+                <div className="flex justify-center mt-8">
+                  <button
+                    onClick={() => navigate('/')}
+                    className="px-6 py-3 rounded-full bg-black text-white font-semibold text-base hover:bg-gray-800 transition-all shadow-lg flex items-center space-x-2"
+                  >
+                    <span>View All Products</span>
+                    <ArrowRight className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>

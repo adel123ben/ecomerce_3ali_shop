@@ -37,6 +37,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ singleProduct }) => {
     register,
     handleSubmit,
     formState: { errors },
+    reset,
   } = useForm<OrderFormData>({
     resolver: zodResolver(orderSchema),
   });
@@ -68,23 +69,50 @@ export const OrderForm: React.FC<OrderFormProps> = ({ singleProduct }) => {
     setIsSubmitting(true);
 
     try {
-      // Create order in database
-      const { data: order, error: orderError } = await supabase
-        .from('orders')
-        .insert([{
-          customer_name: data.customer_name,
-          customer_email: data.customer_email,
-          customer_phone: data.customer_phone,
-          customer_address: data.customer_address,
-          total_amount: finalTotal,
-          status: 'pending',
-        }])
-        .select()
-        .single();
+      // Add retry logic for better reliability
+      let retryCount = 0;
+      const maxRetries = 3;
+      let orderCreated = false;
+      let order;
 
-      if (orderError) {
-        console.error('Order creation error:', orderError);
-        throw new Error('Failed to create order');
+      while (!orderCreated && retryCount < maxRetries) {
+        try {
+          // Create order in database with better error handling
+          const { data: orderData, error: orderError } = await supabase
+            .from('orders')
+            .insert([{
+              customer_name: data.customer_name.trim(),
+              customer_email: data.customer_email.trim().toLowerCase(),
+              customer_phone: data.customer_phone.trim(),
+              customer_address: data.customer_address.trim(),
+              total_amount: finalTotal,
+              status: 'pending',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            }])
+            .select()
+            .single();
+
+          if (orderError) {
+            console.error('Order creation error (attempt ' + (retryCount + 1) + '):', orderError);
+            if (retryCount === maxRetries - 1) {
+              throw new Error(`Failed to create order: ${orderError.message}`);
+            }
+            retryCount++;
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
+            continue;
+          }
+
+          order = orderData;
+          orderCreated = true;
+        } catch (error) {
+          console.error('Order creation attempt failed:', error);
+          if (retryCount === maxRetries - 1) {
+            throw error;
+          }
+          retryCount++;
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
       }
 
       // Create order items
@@ -103,13 +131,18 @@ export const OrderForm: React.FC<OrderFormProps> = ({ singleProduct }) => {
 
       if (itemsError) {
         console.error('Order items creation error:', itemsError);
-        throw new Error('Failed to create order items');
+        // Try to clean up the order if items creation failed
+        await supabase.from('orders').delete().eq('id', order.id);
+        throw new Error(`Failed to create order items: ${itemsError.message}`);
       }
 
       // Clear cart if it was a cart checkout
       if (!singleProduct) {
         clearCart();
       }
+
+      // Reset form
+      reset();
 
       toast.success('Order placed successfully!');
       
@@ -132,7 +165,8 @@ export const OrderForm: React.FC<OrderFormProps> = ({ singleProduct }) => {
 
     } catch (error) {
       console.error('Error creating order:', error);
-      toast.error('Failed to place order. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      toast.error(`Failed to place order: ${errorMessage}`);
     } finally {
       setIsSubmitting(false);
     }
