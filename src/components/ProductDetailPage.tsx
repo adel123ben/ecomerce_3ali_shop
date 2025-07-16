@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { X, Heart, Share2, Star, ChevronLeft, ChevronRight, ZoomIn, Minus, Plus, ShoppingCart, Check } from 'lucide-react';
+import { X, Heart, Share2, Star, ChevronLeft, ChevronRight, ZoomIn, Minus, Plus, ShoppingCart, Check, ArrowRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Product } from '../types';
 import { useNavigate } from 'react-router-dom';
 import { useCartStore } from '../store/cartStore';
 import { CartPage } from './CartPage';
 import ReactDOM from 'react-dom';
+import { supabase } from '../lib/supabase';
+import { ProductCard } from './ProductCard';
 
 interface ProductDetailPageProps {
   product: Product | null;
@@ -481,6 +483,22 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ product, o
                   </button>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* 5 premiers produits du store */}
+          {allProducts.length > 0 && (
+            <div className="mt-16">
+              <h2 className="text-2xl font-bold text-gray-900 mb-8">Nos 5 premiers produits</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+                {allProducts.slice(0, 5).map((prod) => (
+                  <ProductCard
+                    key={prod.id}
+                    product={prod}
+                    onProductClick={() => navigate(`/product/${prod.id}`)}
+                  />
+                ))}
+              </div>
             </div>
           )}
         </div>
