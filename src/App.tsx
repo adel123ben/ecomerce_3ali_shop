@@ -24,13 +24,13 @@ import { OrderForm } from './components/OrderForm';
 import { InquiryForm } from './components/InquiryForm';
 
 // Modern, dismissible announcement bar
-function AnnouncementBar({ visible, onClose }: { visible: boolean; onClose: () => void }) {
-  if (!visible) return null;
+function AnnouncementBar({ visible, onClose, text }: { visible: boolean; onClose: () => void; text: string }) {
+  if (!visible || !text) return null;
   return (
     <div className="fixed top-0 left-0 w-full z-[100] flex items-center gap-x-6 overflow-hidden bg-orange-500 px-4 sm:px-6 py-1.5 sm:py-2 shadow-md h-9 sm:h-11">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 w-full justify-center">
         <p className="text-sm sm:text-base text-white font-semibold">
-          <Typewriter text="30% de réduction ce mois-ci !" speed={0.04} />
+          <Typewriter text={text} speed={0.04} />
         </p>
       </div>
       <div className="flex flex-1 justify-end">
@@ -62,23 +62,33 @@ function App() {
   const heroDescriptionRef = useRef<HTMLParagraphElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
+  // Track if screen is mobile
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768); // Tailwind 'md' breakpoint
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   // GSAP animations
   useGSAP(() => {
-    if (selectedCategory === '' && !loading && !showLoader) {
+    if (selectedCategory === '' && !loading && !showLoader && !isMobile) {
       // Register ScrollTrigger plugin
       gsap.registerPlugin(ScrollTrigger);
-      
       // Reset elements to initial state
       gsap.set(heroTitleRef.current, { opacity: 0, y: 30 });
       gsap.set(heroDescriptionRef.current, { opacity: 0, y: 30 });
-
       // Create scroll-triggered animations
       gsap.fromTo(heroTitleRef.current,
         { opacity: 0, y: 30 },
         { 
           opacity: 1, 
           y: 0,
-          duration: 0.8,
+          duration: 0.7,
           ease: "power3.out",
           scrollTrigger: {
             trigger: heroTitleRef.current,
@@ -88,13 +98,12 @@ function App() {
           }
         }
       );
-
       gsap.fromTo(heroDescriptionRef.current,
         { opacity: 0, y: 30 },
         { 
           opacity: 1, 
           y: 0,
-          duration: 0.8,
+          duration: 0.7,
           ease: "power3.out",
           scrollTrigger: {
             trigger: heroDescriptionRef.current,
@@ -105,7 +114,7 @@ function App() {
         }
       );
     }
-  }, [selectedCategory, loading, showLoader]);
+  }, [selectedCategory, loading, showLoader, isMobile]);
 
   // Handle initial loader
   useEffect(() => {
@@ -199,6 +208,45 @@ function App() {
 
   // Announcement bar state
   const [barVisible, setBarVisible] = useState(true);
+  const [announcementText, setAnnouncementText] = useState('');
+  const [announcementActive, setAnnouncementActive] = useState(false);
+
+  // Fetch announcement bar from DB + live update
+  useEffect(() => {
+    let subscription: any;
+    const fetchAnnouncement = async () => {
+      const { data, error } = await supabase
+        .from('announcement_bar')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+      if (data && data.is_active && data.text && data.text.trim() !== '') {
+        setAnnouncementText(data.text);
+        setAnnouncementActive(true);
+      } else {
+        setAnnouncementText('');
+        setAnnouncementActive(false);
+      }
+    };
+    fetchAnnouncement();
+
+    // Live update (Supabase Realtime)
+    subscription = supabase
+      .channel('announcement_bar_changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'announcement_bar' },
+        (payload) => {
+          fetchAnnouncement();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      if (subscription) supabase.removeChannel(subscription);
+    };
+  }, []);
 
   // Admin route logic
   if (isAdminRoute) {
@@ -223,8 +271,8 @@ function App() {
   // Customer-facing app
   return (
     <div className="min-h-screen bg-gray-50">
-      <AnnouncementBar visible={barVisible} onClose={() => setBarVisible(false)} />
-      {barVisible && <div className="h-9 sm:h-11" />} {/* Spacer for announcement bar height, only when bar is visible */}
+      <AnnouncementBar visible={barVisible && announcementActive} onClose={() => setBarVisible(false)} text={announcementText} />
+      {barVisible && announcementActive && <div className="h-9 sm:h-11" />} {/* Spacer for announcement bar height, only when bar is visible */}
       <Header
         categories={categories}
         selectedCategory={selectedCategory}
@@ -252,10 +300,17 @@ function App() {
                 {selectedCategory === '' && <HeroCarousel />}
                 {selectedCategory === '' && (
                   <div className="mb-12  mt-16">
-                    <h1 className="text-4xl md:text-5xl font-bold mb-6 text-left bg-gradient-to-r from-gray-700 via-gray-600 to-gray-800 bg-clip-text text-transparent" ref={heroTitleRef}>
+                    <h1
+                      className="text-4xl md:text-5xl font-bold mb-6 text-left bg-gradient-to-r from-gray-700 via-gray-600 to-gray-800 bg-clip-text text-transparent"
+                      ref={heroTitleRef}
+                    >
                       Premium Athletic Wear
                     </h1>
-                    <p className="text-xl text-gray-600 max-w-3xl leading-relaxed text-left" ref={heroDescriptionRef}>
+                    {/* Hide description on mobile (smaller than md) */}
+                    <p
+                      className="text-xl text-gray-600 max-w-3xl leading-relaxed text-left hidden md:block"
+                      ref={heroDescriptionRef}
+                    >
                       Discover our premium collection of high-performance sportswear designed for athletes and fitness enthusiasts who demand excellence
                     </p>
                   </div>

@@ -1,41 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 interface CarouselSlide {
-  id: number;
-  image: string;
-  title: string;
-  subtitle: string;
-  buttonText: string;
-  buttonLink: string;
+  id: string;
+  image_url: string;
+  text?: string | null;
+  show_button?: boolean;
+  button_url?: string | null;
 }
-
-const slides: CarouselSlide[] = [
-  {
-    id: 1,
-    image: 'https://cdn.dribbble.com/userupload/13118950/file/original-cfaebacb75910a02e08e618b7ab2a067.jpg?resize=752x&vertical=center',
-    title: 'Premium Athletic Wear',
-    subtitle: 'Discover our latest collection of high-performance sportswear',
-    buttonText: 'Shop Now',
-    buttonLink: '#products'
-  },
-  {
-    id: 2,
-    image: 'https://cdna.artstation.com/p/assets/images/images/065/569/746/large/harshraj-chauhan-nike-new-arrival-poster.jpg?1690717266',
-    title: 'New Season Collection',
-    subtitle: 'Elevate your style with our newest arrivals',
-    buttonText: 'Explore',
-    buttonLink: '#new'
-  },
-  {
-    id: 3,
-    image: 'https://mostaql.hsoubcdn.com/uploads/thumbnails/1009333/60c770e9a2244/Blender-Project-100415.png',
-    title: 'Performance Gear',
-    subtitle: 'Professional equipment for serious athletes',
-    buttonText: 'View Collection',
-    buttonLink: '#performance'
-  }
-];
 
 export const HeroCarousel: React.FC = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -43,12 +16,57 @@ export const HeroCarousel: React.FC = () => {
   const [touchStart, setTouchStart] = useState(0);
   const [touchEnd, setTouchEnd] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [slides, setSlides] = useState<CarouselSlide[]>([]);
   const carouselRef = useRef<HTMLDivElement>(null);
   const autoPlayRef = useRef<NodeJS.Timeout>();
 
+  // Fetch slides from Supabase
+  useEffect(() => {
+    const fetchSlides = async () => {
+      const { data, error } = await supabase
+        .from('carousel_images')
+        .select('*')
+        .order('order');
+      if (data && data.length > 0) {
+        setSlides(data);
+      } else {
+        // fallback: hardcoded slides
+        setSlides([
+          {
+            id: '1',
+            image_url: 'https://cdn.dribbble.com/userupload/13118950/file/original-cfaebacb75910a02e08e618b7ab2a067.jpg?resize=752x&vertical=center',
+            text: 'Premium Athletic Wear',
+            show_button: true,
+            button_url: '#products',
+          },
+          {
+            id: '2',
+            image_url: 'https://cdna.artstation.com/p/assets/images/images/065/569/746/large/harshraj-chauhan-nike-new-arrival-poster.jpg?1690717266',
+            text: 'New Season Collection',
+            show_button: true,
+            button_url: '#new',
+          },
+          {
+            id: '3',
+            image_url: 'https://mostaql.hsoubcdn.com/uploads/thumbnails/1009333/60c770e9a2244/Blender-Project-100415.png',
+            text: 'Performance Gear',
+            show_button: true,
+            button_url: '#performance',
+          },
+        ]);
+      }
+    };
+    fetchSlides();
+  }, []);
+
+  // Reset currentSlide to 0 when slides change
+  useEffect(() => {
+    setCurrentSlide(0);
+  }, [slides.length]);
+
   // Auto-play functionality
   useEffect(() => {
-    if (isAutoPlaying) {
+    if (isAutoPlaying && slides.length > 0) {
       autoPlayRef.current = setInterval(() => {
         nextSlide();
       }, 2000);
@@ -59,7 +77,7 @@ export const HeroCarousel: React.FC = () => {
         clearInterval(autoPlayRef.current);
       }
     };
-  }, [currentSlide, isAutoPlaying]);
+  }, [currentSlide, isAutoPlaying, slides.length]);
 
   const nextSlide = () => {
     if (isTransitioning) return;
@@ -113,6 +131,14 @@ export const HeroCarousel: React.FC = () => {
   const handleMouseEnter = () => setIsAutoPlaying(false);
   const handleMouseLeave = () => setIsAutoPlaying(true);
 
+  if (slides.length === 0) {
+    return (
+      <section className="relative w-full h-[60vh] md:h-[70vh] lg:h-[80vh] flex items-center justify-center bg-gray-900">
+        <div className="text-center text-white opacity-70">Chargement du carousel...</div>
+      </section>
+    );
+  }
+
   return (
     <section 
       className="relative w-full h-[60vh] md:h-[70vh] lg:h-[80vh] overflow-hidden bg-gray-900"
@@ -140,8 +166,8 @@ export const HeroCarousel: React.FC = () => {
             {/* Background Image */}
             <div className="absolute inset-0">
               <img
-                src={slide.image}
-                alt={slide.title}
+                src={slide.image_url}
+                alt={slide.text || ''}
                 className="w-full h-full object-cover"
                 loading={index === 0 ? 'eager' : 'lazy'}
               />
@@ -149,39 +175,32 @@ export const HeroCarousel: React.FC = () => {
               <div className="absolute inset-0 bg-black bg-opacity-40"></div>
             </div>
 
-            {/* Content */}
-            <div className="relative z-10 flex items-center justify-center h-full px-4 sm:px-6 lg:px-8">
-              <div className="text-center text-white max-w-4xl mx-auto">
-                <h1 
-                  className={`text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 transition-all duration-700 ${
+            {/* Content : bouton toujours centré, texte au-dessus si présent */}
+            <div className="relative z-10 flex flex-col items-center justify-center h-full px-4 sm:px-6 lg:px-8">
+              {slide.text && (
+                <h1
+                  className={`text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 text-white transition-all duration-700 ${
                     index === currentSlide
                       ? 'transform translate-y-0 opacity-100'
                       : 'transform translate-y-8 opacity-0'
                   }`}
                 >
-                  {slide.title}
+                  {slide.text}
                 </h1>
-                <p 
-                  className={`text-lg sm:text-xl md:text-2xl mb-8 transition-all duration-700 delay-200 ${
-                    index === currentSlide
-                      ? 'transform translate-y-0 opacity-100'
-                      : 'transform translate-y-8 opacity-0'
-                  }`}
-                >
-                  {slide.subtitle}
-                </p>
+              )}
+              {slide.show_button && slide.button_url && (
                 <button
-                  className={`bg-white text-gray-900 px-8 py-3 rounded-full font-semibold text-lg hover:bg-gray-100 transform hover:scale-105 transition-all duration-300 shadow-lg ${
+                  className={`mt-4 bg-white text-gray-900 px-8 py-3 rounded-full font-semibold text-lg hover:bg-gray-100 transform hover:scale-105 transition-all duration-300 shadow-lg ${
                     index === currentSlide
                       ? 'translate-y-0 opacity-100 delay-400'
                       : 'translate-y-8 opacity-0'
                   }`}
-                  onClick={() => window.location.href = slide.buttonLink}
-                  aria-label={`${slide.buttonText} - ${slide.title}`}
+                  onClick={() => window.location.href = slide.button_url!}
+                  aria-label={slide.text ? `Voir ${slide.text}` : 'Voir'}
                 >
-                  {slide.buttonText}
+                  Voir
                 </button>
-              </div>
+              )}
             </div>
           </div>
         ))}
@@ -190,7 +209,7 @@ export const HeroCarousel: React.FC = () => {
       {/* Navigation Arrows */}
       <button
         onClick={prevSlide}
-        disabled={isTransitioning}
+        disabled={isTransitioning || slides.length === 0}
         className="absolute left-4 top-1/2 transform -translate-y-1/2 z-20 bg-white bg-opacity-20 hover:bg-opacity-30 text-white p-3 rounded-full transition-all duration-300 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50 disabled:opacity-50"
         aria-label="Previous slide"
       >
@@ -199,7 +218,7 @@ export const HeroCarousel: React.FC = () => {
 
       <button
         onClick={nextSlide}
-        disabled={isTransitioning}
+        disabled={isTransitioning || slides.length === 0}
         className="absolute right-4 top-1/2 transform -translate-y-1/2 z-20 bg-white bg-opacity-20 hover:bg-opacity-30 text-white p-3 rounded-full transition-all duration-300 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50 disabled:opacity-50"
         aria-label="Next slide"
       >
@@ -228,7 +247,7 @@ export const HeroCarousel: React.FC = () => {
         <div
           className="h-full bg-white transition-all duration-300 ease-linear"
           style={{
-            width: `${((currentSlide + 1) / slides.length) * 100}%`
+            width: `${slides.length > 0 ? ((currentSlide + 1) / slides.length) * 100 : 0}%`
           }}
         />
       </div>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { LogOut, Package, MessageSquare, BarChart3, User, Archive, ShoppingBag } from 'lucide-react';
+import { LogOut, Package, MessageSquare, BarChart3, User, Archive, ShoppingBag, Image as ImageIcon, Megaphone } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 
 interface AdminLayoutProps {
@@ -21,6 +21,8 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, currentTab, 
     { id: 'orders', label: 'Orders', icon: ShoppingBag },
     { id: 'inquiries', label: 'Inquiries', icon: MessageSquare },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+    { id: 'imageslider', label: 'ImageSlider', icon: ImageIcon },
+    { id: 'announcementbar', label: 'AnnouncementBar', icon: Megaphone },
   ];
 
   return (

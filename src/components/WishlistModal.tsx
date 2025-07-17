@@ -69,9 +69,9 @@ export const WishlistModal: React.FC<WishlistModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div ref={modalRef} className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+      <div ref={modalRef} className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-100">
+        <div className="flex items-center justify-between p-6 border-b border-gray-100 flex-shrink-0">
           <div className="flex items-center space-x-3">
             <div className="bg-red-50 p-2 rounded-full">
               <Heart className="h-6 w-6 text-red-500 fill-current" />
@@ -91,8 +91,8 @@ export const WishlistModal: React.FC<WishlistModalProps> = ({
           </button>
         </div>
 
-        {/* Content */}
-        <div className="overflow-y-auto max-h-[calc(90vh-140px)]">
+        {/* Content (scrollable area) */}
+        <div className="overflow-y-auto flex-1 min-h-0" style={{ maxHeight: 'calc(90vh - 140px - 72px)' }}>
           {wishlist.length === 0 ? (
             <div className="p-8 text-center">
               <div className="bg-gray-50 rounded-full p-4 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
@@ -178,7 +178,7 @@ export const WishlistModal: React.FC<WishlistModalProps> = ({
 
         {/* Footer */}
         {wishlist.length > 0 && (
-          <div className="border-t border-gray-100 p-6">
+          <div className="border-t border-gray-100 p-6 flex-shrink-0 bg-white">
             <div className="flex items-center justify-between">
               <div className="text-sm text-gray-500">
                 {wishlist.length} {wishlist.length === 1 ? 'item' : 'items'} in favorites

@@ -5,25 +5,40 @@ import { InventoryTab } from './admin/InventoryTab';
 import { InquiriesTab } from './admin/InquiriesTab';
 import { AnalyticsTab } from './admin/AnalyticsTab';
 import { OrdersTab } from './admin/OrdersTab';
+import { ImageSliderTab } from './admin/ImageSliderTab';
+import { AnnouncementBarTab } from './admin/AnnouncementBarTab';
 
 export const AdminDashboard: React.FC = () => {
   const [currentTab, setCurrentTab] = useState('products');
 
   const renderTabContent = () => {
+    let content;
     switch (currentTab) {
       case 'products':
-        return <ProductsTab />;
+        content = <ProductsTab />;
+        break;
       case 'inventory':
-        return <InventoryTab />;
-      case 'inquiries':
-        return <InquiriesTab />;
-      case 'analytics':
-        return <AnalyticsTab />;
+        content = <InventoryTab />;
+        break;
       case 'orders':
-        return <OrdersTab />;
+        content = <OrdersTab />;
+        break;
+      case 'inquiries':
+        content = <InquiriesTab />;
+        break;
+      case 'analytics':
+        content = <AnalyticsTab />;
+        break;
+      case 'imageslider':
+        content = <ImageSliderTab />;
+        break;
+      case 'announcementbar':
+        content = <AnnouncementBarTab />;
+        break;
       default:
-        return <ProductsTab />;
+        content = <ProductsTab />;
     }
+    return content;
   };
 
   return (

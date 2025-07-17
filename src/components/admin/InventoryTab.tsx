@@ -13,9 +13,11 @@ export const InventoryTab: React.FC = () => {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'low_stock' | 'out_of_stock'>('all');
+  const [inquiriesCount, setInquiriesCount] = useState<Record<string, number>>({});
 
   useEffect(() => {
     fetchInventory();
+    fetchInquiriesCount();
   }, []);
 
   const fetchInventory = async () => {
@@ -34,7 +36,6 @@ export const InventoryTab: React.FC = () => {
         ...product,
         stock_quantity: product.stock_quantity,
         low_stock_threshold: 5, // valeur fixe, configurable si besoin
-        total_inquiries: 0, // ou simuler si pas de vraie donnée
       }));
 
       setInventory(inventoryData);
@@ -43,6 +44,21 @@ export const InventoryTab: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchInquiriesCount = async () => {
+    const { data, error } = await supabase
+      .from('inquiries')
+      .select('product_id', { count: 'exact', head: false });
+    if (error) return;
+    // Compte le nombre d'inquiries par product_id
+    const countMap: Record<string, number> = {};
+    data?.forEach((inq) => {
+      if (inq.product_id) {
+        countMap[inq.product_id] = (countMap[inq.product_id] || 0) + 1;
+      }
+    });
+    setInquiriesCount(countMap);
   };
 
   const filteredInventory = inventory.filter((item) => {
@@ -69,6 +85,16 @@ export const InventoryTab: React.FC = () => {
   const totalValue = inventory.reduce((sum, item) => sum + (item.price * item.stock_quantity), 0);
   const lowStockItems = inventory.filter(item => item.in_stock && item.stock_quantity > 0 && item.stock_quantity <= item.low_stock_threshold).length;
   const outOfStockItems = inventory.filter(item => !item.in_stock || item.stock_quantity <= 0).length;
+
+  // Fonction utilitaire pour formater en Dinar Algérien
+  const formatCurrency = (amount: number) => {
+    return amount.toLocaleString('en-DZ', {
+      style: 'currency',
+      currency: 'DZD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    });
+  };
 
   if (loading) {
     return <div className="text-center py-12">Loading inventory...</div>;
@@ -134,12 +160,7 @@ export const InventoryTab: React.FC = () => {
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-500">Total Value</p>
               <p className="text-2xl font-bold text-gray-900">
-                {totalValue.toLocaleString('en-DZ', { 
-                  style: 'currency', 
-                  currency: 'DZD',
-                  minimumFractionDigits: 0,
-                  maximumFractionDigits: 0
-                })}
+                {formatCurrency(totalValue)}
               </p>
             </div>
           </div>
@@ -214,7 +235,7 @@ export const InventoryTab: React.FC = () => {
                         </div>
                         <div className="ml-4">
                           <div className="text-sm font-medium text-gray-900">{item.name}</div>
-                          <div className="text-sm text-gray-500">${item.price.toFixed(2)}</div>
+                          <div className="text-sm text-gray-500">{formatCurrency(item.price)}</div>
                         </div>
                       </div>
                     </td>
@@ -233,10 +254,10 @@ export const InventoryTab: React.FC = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      ${(item.price * item.stock_quantity).toFixed(2)}
+                      {formatCurrency(item.price * item.stock_quantity)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {item.total_inquiries}
+                      {inquiriesCount[item.id] || 0}
                     </td>
                   </tr>
                 );

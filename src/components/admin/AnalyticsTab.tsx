@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { TrendingUp, Users, Package, MessageSquare, DollarSign, ShoppingCart, Calendar, BarChart3 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { BarChart } from '@mui/x-charts/BarChart';
 
 interface Analytics {
   totalProducts: number;
@@ -64,10 +65,13 @@ export const AnalyticsTab: React.FC = () => {
       // Get total revenue
       const { data: revenueData } = await supabase
         .from('orders')
-        .select('total_amount')
-        .neq('status', 'cancelled');
+        .select('total_amount, status');
 
-      const totalRevenue = revenueData?.reduce((sum, order) => sum + order.total_amount, 0) || 0;
+      // Inclure seulement les statuts confirmés, expédiés ou livrés
+      const validStatuses = ['confirmed', 'shipped', 'delivered'];
+      const totalRevenue = (revenueData || [])
+        .filter(order => validStatuses.includes(order.status))
+        .reduce((sum, order) => sum + order.total_amount, 0);
 
       // Get recent inquiries (last 7 days)
       const { count: recentInquiries } = await supabase
@@ -241,16 +245,28 @@ export const AnalyticsTab: React.FC = () => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h1 className="text-2xl font-bold text-gray-900">Analytics Dashboard</h1>
         <div className="flex items-center space-x-2">
-          <label className="text-sm font-medium text-gray-700">Time Range:</label>
-          <select
-            value={timeRange}
-            onChange={(e) => setTimeRange(e.target.value as '7d' | '30d' | '90d')}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="7d">Last 7 days</option>
-            <option value="30d">Last 30 days</option>
-            <option value="90d">Last 90 days</option>
-          </select>
+          <label className="text-sm font-medium text-gray-700 mr-2">Time Range:</label>
+          <div className="flex bg-gray-100 rounded-lg shadow-inner p-1">
+            {[
+              { label: '7j', value: '7d' },
+              { label: '30j', value: '30d' },
+              { label: '90j', value: '90d' },
+            ].map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setTimeRange(option.value as '7d' | '30d' | '90d')}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500
+                  ${timeRange === option.value
+                    ? 'bg-blue-600 text-white shadow'
+                    : 'bg-transparent text-gray-700 hover:bg-blue-50'}
+                `}
+                aria-pressed={timeRange === option.value}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -317,27 +333,33 @@ export const AnalyticsTab: React.FC = () => {
           </h2>
           {analytics.salesTrends.length > 0 ? (
             <div className="space-y-4">
-              <div className="h-64 flex items-end space-x-2">
-                {analytics.salesTrends.map((trend, index) => {
-                  const maxRevenue = Math.max(...analytics.salesTrends.map(t => t.revenue));
-                  const height = maxRevenue > 0 ? (trend.revenue / maxRevenue) * 200 : 0;
-                  return (
-                    <div key={index} className="flex-1 flex flex-col items-center">
-                      <div className="text-xs text-gray-600 mb-1">{trend.orders}</div>
-                      <div
-                        className="bg-blue-500 rounded-t w-full min-h-[4px] transition-all duration-300 hover:bg-blue-600"
-                        style={{ height: `${height}px` }}
-                        title={`${formatDate(trend.date)}: ${trend.orders} orders, ${formatCurrency(trend.revenue)}`}
-                      ></div>
-                      <div className="text-xs text-gray-500 mt-1 transform -rotate-45 origin-left">
-                        {formatDate(trend.date)}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+              <BarChart
+                height={260}
+                xAxis={[{
+                  data: analytics.salesTrends.map((trend) => trend.date),
+                  scaleType: 'band',
+                  label: 'Date',
+                  valueFormatter: (date) => formatDate(date),
+                }]}
+                series={[{
+                  data: analytics.salesTrends.map((trend) => trend.revenue),
+                  label: 'Revenue (DZD)',
+                  color: '#2563eb',
+                }]}
+                margin={{ top: 20, right: 20, left: 40, bottom: 40 }}
+                grid={{ horizontal: true }}
+                tooltip={{
+                  trigger: 'item',
+                  valueFormatter: (value) => formatCurrency(value),
+                }}
+                sx={{
+                  '.MuiChartsAxis-tickLabel': { fontSize: 12 },
+                  '.MuiChartsLegend-label': { fontSize: 13 },
+                }}
+                responsive
+              />
               <div className="text-xs text-gray-500 text-center">
-                Revenue and order trends over time
+                Revenue trends over time
               </div>
             </div>
           ) : (
