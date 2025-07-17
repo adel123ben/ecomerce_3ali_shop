@@ -127,13 +127,22 @@ export const ImageSliderTab: React.FC = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-gray-900">Gestion du Carousel d'Accueil</h1>
-        <button
-          onClick={handleAdd}
-          className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="h-5 w-5" />
-          <span>Ajouter une image</span>
-        </button>
+        <div>
+          <button
+            onClick={handleAdd}
+            className="hidden sm:flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="h-5 w-5" />
+            <span>Ajouter une image</span>
+          </button>
+          <button
+            onClick={handleAdd}
+            className="sm:hidden flex items-center justify-center bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 transition-colors"
+            aria-label="Ajouter une image"
+          >
+            <Plus className="h-5 w-5" />
+          </button>
+        </div>
       </div>
 
       {loading ? (

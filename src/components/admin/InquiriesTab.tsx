@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MessageSquare, ExternalLink, Calendar, Trash2, CheckCircle, Eye } from 'lucide-react';
+import { MessageSquare, ExternalLink, Calendar, Trash2, CheckCircle, Eye, RefreshCcw } from 'lucide-react';
 import { Inquiry } from '../../types';
 import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
@@ -92,14 +92,22 @@ Phone: ${inquiry.phone}`;
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-gray-900">Customer Inquiries</h1>
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-2 sm:space-x-4">
           <button
             onClick={fetchInquiries}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"
+            className="hidden sm:flex bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm items-center space-x-2"
           >
-            Refresh
+            <RefreshCcw className="h-4 w-4" />
+            <span>Refresh</span>
           </button>
-          <div className="text-sm text-gray-500">
+          <button
+            onClick={fetchInquiries}
+            className="sm:hidden bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center"
+            aria-label="Refresh"
+          >
+            <RefreshCcw className="h-5 w-5" />
+          </button>
+          <div className="text-xs sm:text-sm text-gray-500 whitespace-nowrap ml-1 sm:ml-0">
             Total: {inquiries.length} inquiries
           </div>
         </div>
