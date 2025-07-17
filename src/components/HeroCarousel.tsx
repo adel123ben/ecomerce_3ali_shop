@@ -210,7 +210,7 @@ export const HeroCarousel: React.FC = () => {
       <button
         onClick={prevSlide}
         disabled={isTransitioning || slides.length === 0}
-        className="absolute left-4 top-1/2 transform -translate-y-1/2 z-20 bg-white bg-opacity-20 hover:bg-opacity-30 text-white p-3 rounded-full transition-all duration-300 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50 disabled:opacity-50"
+        className="hidden sm:flex absolute left-4 top-1/2 transform -translate-y-1/2 z-20 bg-white bg-opacity-20 hover:bg-opacity-30 text-white p-3 rounded-full transition-all duration-300 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50 disabled:opacity-50"
         aria-label="Previous slide"
       >
         <ChevronLeft className="w-6 h-6" />
@@ -219,7 +219,7 @@ export const HeroCarousel: React.FC = () => {
       <button
         onClick={nextSlide}
         disabled={isTransitioning || slides.length === 0}
-        className="absolute right-4 top-1/2 transform -translate-y-1/2 z-20 bg-white bg-opacity-20 hover:bg-opacity-30 text-white p-3 rounded-full transition-all duration-300 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50 disabled:opacity-50"
+        className="hidden sm:flex absolute right-4 top-1/2 transform -translate-y-1/2 z-20 bg-white bg-opacity-20 hover:bg-opacity-30 text-white p-3 rounded-full transition-all duration-300 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50 disabled:opacity-50"
         aria-label="Next slide"
       >
         <ChevronRight className="w-6 h-6" />

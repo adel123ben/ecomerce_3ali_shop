@@ -66,6 +66,17 @@ export const Header: React.FC<HeaderProps & { products?: any[] }> = ({
       })),
   ];
 
+  // Nouvelle fonction pour navigation catégorie (corrige le bug)
+  const handleCategorySelect = (categoryId: string) => {
+    setIsMobileMenuOpen(false);
+    if (window.location.pathname !== '/') {
+      navigate('/');
+      setTimeout(() => onCategoryChange(categoryId), 10);
+    } else {
+      onCategoryChange(categoryId);
+    }
+  };
+
   return (
     <header className={`bg-white shadow-sm sticky z-[200] border-b border-gray-100 ${announcementBarVisible ? 'top-9 sm:top-11' : 'top-0'}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -90,7 +101,7 @@ export const Header: React.FC<HeaderProps & { products?: any[] }> = ({
             {navigationItems.map((item) => (
               <button
                 key={item.id}
-                onClick={() => onCategoryChange(item.id)}
+                onClick={() => handleCategorySelect(item.id)}
                 className={`relative px-3 py-2 text-sm font-medium transition-all duration-200 hover:text-black ${
                   selectedCategory === item.id
                     ? 'text-black border-b-2 border-black'
@@ -212,8 +223,9 @@ export const Header: React.FC<HeaderProps & { products?: any[] }> = ({
 
             {/* Mobile Menu Button */}
             <button
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              onClick={() => setIsMobileMenuOpen((open) => !open)}
               className="lg:hidden p-2 rounded-full hover:bg-gray-100 transition-colors"
+              aria-label={isMobileMenuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
             >
               {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
@@ -258,58 +270,35 @@ export const Header: React.FC<HeaderProps & { products?: any[] }> = ({
 
         {/* Mobile Navigation */}
         <div className={`lg:hidden transition-all duration-300 ease-in-out overflow-hidden ${
-          isMobileMenuOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+          isMobileMenuOpen ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'
         }`}>
           <div className="border-t border-gray-100 py-4">
-            <div className="flex flex-col space-y-1">
-              {navigationItems.map((item) => (
+            <div className="flex flex-col space-y-1 pb-6">
+              {/* Affiche toutes les catégories */}
+              <button
+                key="all"
+                onClick={() => handleCategorySelect('')}
+                className={`px-4 py-3 rounded-lg text-left text-sm font-medium transition-all duration-200 ${
+                  selectedCategory === ''
+                    ? 'bg-black text-white'
+                    : 'text-gray-700 hover:text-black hover:bg-gray-50'
+                }`}
+              >
+                All Products
+              </button>
+              {categories.map((cat) => (
                 <button
-                  key={item.id}
-                  onClick={() => {
-                    onCategoryChange(item.id);
-                    setIsMobileMenuOpen(false);
-                  }}
+                  key={cat.id}
+                  onClick={() => handleCategorySelect(cat.id)}
                   className={`px-4 py-3 rounded-lg text-left text-sm font-medium transition-all duration-200 ${
-                    selectedCategory === item.id
+                    selectedCategory === cat.id
                       ? 'bg-black text-white'
                       : 'text-gray-700 hover:text-black hover:bg-gray-50'
-                  } ${item.isSpecial ? 'text-red-600 hover:text-red-700' : ''}`}
+                  }`}
                 >
-                  <div className="flex items-center justify-between">
-                    {item.label}
-                    {item.isNew && (
-                      <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">
-                        New
-                      </span>
-                    )}
-                  </div>
+                  {cat.name}
                 </button>
               ))}
-              
-              {/* More Categories in Mobile */}
-              {otherCategories.length > 0 && (
-                <>
-                  <div className="px-4 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    More Categories
-                  </div>
-                  {otherCategories.map((category) => (
-                    <button
-                      key={category.id}
-                      onClick={() => {
-                        onCategoryChange(category.id);
-                        setIsMobileMenuOpen(false);
-                      }}
-                      className={`px-4 py-3 rounded-lg text-left text-sm font-medium transition-all duration-200 ${
-                        selectedCategory === category.id
-                          ? 'bg-black text-white'
-                          : 'text-gray-700 hover:text-black hover:bg-gray-50'
-                      }`}
-                    >
-                      {category.name}
-                    </button>
-                  ))}
-                </>
-              )}
             </div>
           </div>
         </div>
