@@ -11,5 +11,15 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script type="module">
+      import { createChat } from 'https://cdn.jsdelivr.net/npm/@n8n/chat/dist/chat.bundle.es.js';
+      createChat({
+        webhookUrl: 'https://adelben.app.n8n.cloud/webhook/a3c8f90b-3905-4393-93c0-7b9f961ca661/chat',
+        anchor: '#n8n-chat-react-anchor',
+        position: 'inline',
+        zIndex: 50
+      });
+    </script>
+    <link href="https://cdn.jsdelivr.net/npm/@n8n/chat/dist/style.css" rel="stylesheet" />
   </body>
 </html>

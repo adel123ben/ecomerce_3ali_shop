@@ -16,7 +16,7 @@ export const WhatsAppButton: React.FC = () => {
   return (
     <>
       {/* WhatsApp Button */}
-      <div className="fixed bottom-6 right-6 z-50">
+      <div className="relative z-50">
         <div className="relative">
           {/* Tooltip */}
           {showTooltip && (
@@ -54,16 +54,6 @@ export const WhatsAppButton: React.FC = () => {
           </button>
         </div>
       </div>
-
-      {/* Mobile-specific positioning adjustment */}
-      <style jsx>{`
-        @media (max-width: 768px) {
-          .fixed.bottom-6.right-6 {
-            bottom: 1rem;
-            right: 1rem;
-          }
-        }
-      `}</style>
     </>
   );
 };

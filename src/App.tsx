@@ -336,7 +336,11 @@ function App() {
         <Route path="/inquiry" element={<InquiryForm />} />
       </Routes>
       <Footer />
-      <WhatsAppButton />
+      {/* WhatsApp + Chat n8n container */}
+      <div className="fixed bottom-6 right-6 z-50 flex flex-row items-center gap-3 sm:gap-4 min-h-[64px]">
+        {/* <WhatsAppButton /> */}
+        <div id="n8n-chat-react-anchor" className="relative flex items-center justify-center min-w-[60px] min-h-[60px]" />
+      </div>
       <Toaster position="top-right" containerClassName="!z-[10000]" />
     </div>
   );
