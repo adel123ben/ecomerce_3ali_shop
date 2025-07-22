@@ -93,7 +93,7 @@ export const Header: React.FC<HeaderProps & { products?: any[] }> = ({
             <div className="bg-black p-2 rounded">
               <ShoppingBag className="h-6 w-6 text-white" />
             </div>
-            <span className="ml-3 text-xl font-bold text-gray-900 hidden sm:block">SportShop</span>
+            <span className="ml-3 text-xl font-bold text-gray-900 hidden sm:block">vibra_drop</span>
           </button>
 
           {/* Desktop Navigation */}
